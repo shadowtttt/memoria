@@ -1,6 +1,11 @@
-const CACHE = 'memoria-v1';
+const CACHE = 'memoria-v2';
 const PRECACHE = [
   './',
+  './style.css',
+  './js/core.js',
+  './js/sidebar.js',
+  './js/chat.js',
+  './js/settings.js',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css'
 ];
@@ -52,6 +57,25 @@ self.addEventListener('fetch', e => {
       }))
     );
     return;
+  }
+
+  // Own CSS/JS: stale-while-revalidate
+  if (url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
+    if (url.hostname === location.hostname) {
+      e.respondWith(
+        caches.match(e.request).then(cached => {
+          const fetchPromise = fetch(e.request).then(res => {
+            if (res.ok) {
+              const clone = res.clone();
+              caches.open(CACHE).then(c => c.put(e.request, clone));
+            }
+            return res;
+          }).catch(() => cached);
+          return cached || fetchPromise;
+        })
+      );
+      return;
+    }
   }
 
   // HTML page: stale-while-revalidate
