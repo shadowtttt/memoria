@@ -22,10 +22,10 @@ const emp=container.querySelector('#empty');if(emp)emp.remove();
 const existing=Array.from(container.querySelectorAll(':scope > .msg'));
 /* Fast path: if IDs match, only patch changed messages */
 if(existing.length===S.msgs.length){let allMatch=true;for(let i=0;i<existing.length;i++){if((existing[i].dataset.id||'')!==(S.msgs[i].id||'')){allMatch=false;break;}}
-if(allMatch){let changed=false;for(let i=0;i<S.msgs.length;i++){const m=S.msgs[i],el=existing[i];/* skip if content hasn't changed (cache key matches) */if(m.role!=='user'&&m._htmlCache&&m._htmlCacheKey===m.content)continue;if(m.role==='user'&&el.dataset.idx===String(i))continue;changed=true;const tmp=document.createElement('div');tmp.innerHTML=rMsg(m,i);el.replaceWith(tmp.firstChild);}scr(true);_hlCode();_initHtmlPreviews();return;}}
+if(allMatch){let changed=false;for(let i=0;i<S.msgs.length;i++){const m=S.msgs[i],el=existing[i];if(el.dataset.rk===_msgRenderKey(m))continue;changed=true;const tmp=document.createElement('div');tmp.innerHTML=rMsg(m,i);el.replaceWith(tmp.firstChild);}scr(true);_hlCode();_initHtmlPreviews();return;}}
 /* Incremental path: find longest matching prefix, rebuild from divergence */
 let matchLen=0;const minLen=Math.min(existing.length,S.msgs.length);
-for(let i=0;i<minLen;i++){const el=existing[i],m=S.msgs[i];if((el.dataset.id||'')!==(m.id||''))break;if(m.role!=='user'&&(!m._htmlCache||m._htmlCacheKey!==m.content))break;matchLen=i+1;}
+for(let i=0;i<minLen;i++){const el=existing[i],m=S.msgs[i];if((el.dataset.id||'')!==(m.id||''))break;if(el.dataset.rk!==_msgRenderKey(m))break;matchLen=i+1;}
 /* Remove trailing extra nodes */
 for(let i=existing.length-1;i>=S.msgs.length;i--)existing[i].remove();
 /* Build new/changed nodes via fragment */
@@ -38,8 +38,13 @@ function getModelColor(mid){if(!mid)return{bg:'#8C8478',ab:'AI'};const m=mid.toL
 function fmtMsgTime(ts){if(!ts)return'';const d=new Date(ts);const pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
 function _avatarHtml(mc){const ca=getCustomAvatar();if(ca.img)return '<div class="mm-icon"><img src="'+ca.img+'"></div>';return '<div class="mm-icon" style="background:'+mc.bg+'">'+mc.ab+'</div>';}
 function _displayName(model){const ca=getCustomAvatar();return ca.name||model||'unknown';}
-function _fmtUsage(ud,tc){if(ud){let h='<span class="usage-detail">';h+='<span class="ud-in">输入 '+ud.input+'</span>';h+='<span class="ud-out">输出 '+ud.output+'</span>';if(ud.cache_read)h+='<span class="ud-hit">命中 '+ud.cache_read+'</span>';if(ud.cache_write)h+='<span class="ud-write">写入 '+ud.cache_write+'</span>';h+='</span>';return h;}if(tc)return '<span>'+tc+' tokens</span>';return '';}
-function rMsgMeta(m){if(!m.model&&!m.token_count&&!m.usage_detail)return'';const mc=getModelColor(m.model);const t=fmtMsgTime(m.created_at);const tk=_fmtUsage(m.usage_detail,m.token_count);const infoHtml=(t||tk)?'<div class="mm-info">'+(t?'<span>'+t+'</span>':'')+tk+'</div>':'';return '<div class="msg-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(m.model))+'</div>'+infoHtml+'</div></div>';}
+function _usageNum(ud,keys){if(!ud)return null;for(const k of keys){const v=ud[k];if(v!==undefined&&v!==null&&v!==''){const n=Number(v);if(Number.isFinite(n))return n;}}return null;}
+const USAGE_ICONS={input:'<svg viewBox="0 0 24 24"><path d="M12 3v13"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>',output:'<svg viewBox="0 0 24 24"><path d="M12 21V8"/><path d="m7 13 5-5 5 5"/><path d="M5 3h14"/></svg>',hit:'<svg viewBox="0 0 24 24"><path d="M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Z"/><path d="M4 6v6c0 1.7 3.6 3 8 3 1.4 0 2.7-.1 3.8-.4"/><path d="M4 12v6c0 1.7 3.6 3 8 3 1.1 0 2.2-.1 3.1-.3"/><path d="m16 19 2 2 4-5"/></svg>',write:'<svg viewBox="0 0 24 24"><path d="M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Z"/><path d="M4 6v6c0 1.7 3.6 3 8 3 1.4 0 2.7-.1 3.8-.4"/><path d="M4 12v6c0 1.7 3.6 3 8 3 .8 0 1.6 0 2.3-.1"/><path d="M19 15v6"/><path d="M16 18h6"/></svg>'};
+function _usageChip(cls,title,icon,value){return '<span class="'+cls+'" title="'+title+'" aria-label="'+title+'">'+icon+'<span>'+value+'</span></span>';}
+function _fmtUsage(ud,tc){if(ud){const input=_usageNum(ud,['normal_input','normal_input_tokens','input','input_tokens','prompt_tokens']);const output=_usageNum(ud,['output','output_tokens','completion_tokens']);const cacheRead=_usageNum(ud,['cache_read','cache_read_input_tokens','input_cache_read','input_cache_read_tokens','cached_tokens','cache_hit','cache_hit_tokens']);const cacheWrite=_usageNum(ud,['cache_write','cache_creation_input_tokens','input_cache_write','input_cache_write_tokens','cache_write_tokens']);const hasAny=input!==null||output!==null||cacheRead!==null||cacheWrite!==null;if(hasAny){let h='<span class="usage-detail">';h+=_usageChip('ud-in','普通输入',USAGE_ICONS.input,input??'-');h+=_usageChip('ud-out','输出',USAGE_ICONS.output,output??'-');h+=_usageChip('ud-hit','命中缓存',USAGE_ICONS.hit,cacheRead??0);h+=_usageChip('ud-write','写入缓存',USAGE_ICONS.write,cacheWrite??0);h+='</span>';return h;}}if(tc)return '<span>'+tc+' tokens</span>';return '';}
+function rMsgUsage(m){const h=_fmtUsage(m.usage_detail,m.token_count);return h?'<div class="msg-usage">'+h+'</div>':'';}
+function rMsgMeta(m){if(!m.model&&!m.created_at)return'';const mc=getModelColor(m.model);const t=fmtMsgTime(m.created_at);const infoHtml=t?'<div class="mm-info"><span>'+t+'</span></div>':'';return '<div class="msg-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(m.model))+'</div>'+infoHtml+'</div></div>';}
+function _msgRenderKey(m){const s=[m.role||'',m.content||'',JSON.stringify(m.attachments||null),m.model||'',m.token_count||'',JSON.stringify(m.usage_detail||null),m.created_at||'',m.thinking_content||'',m._thinkDuration||'',m._firstThink||'',m._resumeThink||'',m.sibling_count||'',m.branch_index||''].join('\u001f');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return String(h);}
 function _rMDCached(m){if(!m.content)return '';if(m._htmlCache&&m._htmlCacheKey===m.content)return m._htmlCache;const h=rMD(m.content);m._htmlCache=h;m._htmlCacheKey=m.content;return h;}
 function rMsg(m,idx){const u=m.role==='user',h=u?E(m.content).replace(/\n/g,'<br>'):_rMDCached(m);const cpI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',reI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',dotI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>';
 let branchHtml='';
@@ -50,6 +55,7 @@ if(m.sibling_count&&m.sibling_count>1&&m.id){
 const a='<button class="mab" onclick="cpM('+idx+')" title="复制">'+cpI+'</button><button class="mab" onclick="regenFrom('+idx+')" title="刷新">'+reI+'</button><button class="mab" onclick="showMAS('+idx+')" title="更多">'+dotI+'</button>'+branchHtml;
 let imgs='';if(u&&m.attachments&&m.attachments.length>0){const imgAtts=m.attachments.filter(a=>a.type==='image'&&a.url);if(imgAtts.length)imgs='<div class="msg-imgs">'+imgAtts.map(a=>'<img src="'+a.url+'" onclick="viewImg(this.src)" loading="lazy">').join('')+'</div>';const docAtts=m.attachments.filter(a=>a.type==='document');if(docAtts.length)imgs+='<div class="msg-docs">'+docAtts.map(a=>'<div class="doc-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>'+E(a.name)+'</span></div>').join('')+'</div>';}
 let metaHtml='';if(!u)metaHtml=rMsgMeta(m);
+const rk=_msgRenderKey(m);
 const _thinkBtn='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
 let thinkHtml='';
 let mcHtml='';
@@ -66,8 +72,8 @@ if(!u&&m._firstThink&&m._resumeThink){
   if(!u&&m.thinking_content){const tid='tk'+idx;const tkTime=m._thinkDuration?'<span class="tk-time">('+m._thinkDuration+'s)</span>':'';thinkHtml='<div class="think-wrap"><button class="think-toggle" onclick="tgThink(\''+tid+'\',this)">'+_thinkBtn+'<span class="tk-label">思考过程</span>'+tkTime+'</button><div class="think-body" id="'+tid+'">'+E(m.thinking_content)+'</div></div>';}
   mcHtml=(h||!imgs)?'<div class="mc">'+h+'</div>':'';
 }
-if(u){return '<div class="msg user" data-idx="'+idx+'" data-id="'+(m.id||'')+'">'+imgs+mcHtml+'<div class="msg-acts">'+a+'</div></div>';}
-return '<div class="msg assistant" data-idx="'+idx+'" data-id="'+(m.id||'')+'">'+CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaHtml+thinkHtml+mcHtml+'</div><div class="msg-acts">'+a+'</div></div>';}
+if(u){return '<div class="msg user" data-idx="'+idx+'" data-id="'+(m.id||'')+'" data-rk="'+rk+'">'+imgs+mcHtml+'<div class="msg-acts">'+a+'</div></div>';}
+return '<div class="msg assistant" data-idx="'+idx+'" data-id="'+(m.id||'')+'" data-rk="'+rk+'">'+CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaHtml+thinkHtml+mcHtml+rMsgUsage(m)+'</div><div class="msg-acts">'+a+'</div></div>';}
 
 // marked.js setup — custom renderers for code blocks and links
 function _initMarked(){
@@ -137,6 +143,7 @@ let _hlTimer=null;function _hlCodeDebounced(){clearTimeout(_hlTimer);_hlTimer=se
 function tgToolResult(head){head.classList.toggle('open');const body=head.nextElementSibling;if(body)body.classList.toggle('open');}
 
 // Stream — shared SSE loop for send/regen/regenUser
+function _setStreamDoneMeta(sd,p){const mc=getModelColor(p.model);const usageHtml=_fmtUsage(p.usage_detail,p.token_count);const existMeta=sd.querySelector('#str-meta');if(existMeta){existMeta.id='';existMeta.querySelector('.mm-name').textContent=_displayName(p.model);}else{const md=document.createElement('div');md.className='msg-meta';md.innerHTML=_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(p.model))+'</div></div>';const flow=sd.querySelector('#str-flow');if(flow)flow.parentNode.insertBefore(md,flow);}if(usageHtml){let usageEl=sd.querySelector('.msg-usage');if(!usageEl){usageEl=document.createElement('div');usageEl.className='msg-usage';const flow=sd.querySelector('#str-flow');if(flow)flow.insertAdjacentElement('afterend',usageEl);}usageEl.innerHTML=usageHtml;}}
 async function _streamChat(act,params,sd,opts){
   opts=opts||{};let ft='',fthink='',_clock=null,_contentStarted=false;
   try{
@@ -157,7 +164,7 @@ async function _streamChat(act,params,sd,opts){
           if(p.type==='thinking'){fthink+=p.text;if(!_clock)_clock=_startThinkClock();_strOnThinking(sd,p.text,_clock);}
           if(p.type==='content'){if(!_contentStarted)_contentStarted=true;ft+=p.text;_strOnContent(sd,p.text,ft);}
           if(p.type==='tool_start'||p.type==='tool_result'||p.type==='tool_done')_strOnTool(sd,p);
-          if(p.type==='done_meta'){const mc=getModelColor(p.model);const tkHtml=_fmtUsage(p.usage_detail,p.token_count);const existMeta=sd.querySelector('#str-meta');if(existMeta){existMeta.id='';existMeta.querySelector('.mm-name').textContent=_displayName(p.model);if(tkHtml){let infoEl=existMeta.querySelector('.mm-info');if(!infoEl){infoEl=document.createElement('div');infoEl.className='mm-info';existMeta.querySelector('.mm-body').appendChild(infoEl);}infoEl.innerHTML=tkHtml;}}else{const md=document.createElement('div');md.className='msg-meta';md.innerHTML=_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(p.model))+'</div>'+(tkHtml?'<div class="mm-info">'+tkHtml+'</div>':'')+'</div>';const mcEl=sd.querySelector('#str-flow');if(mcEl)mcEl.insertBefore(md,mcEl.firstChild);}}
+          if(p.type==='done_meta')_setStreamDoneMeta(sd,p);
         }catch(x){}
       }
     }
