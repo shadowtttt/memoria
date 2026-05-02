@@ -403,8 +403,8 @@ input,textarea,select,button{font-family:inherit}
 .core-edit-btn{width:28px;height:28px;border:none;background:transparent;color:var(--t4);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
 .core-edit-btn:hover{background:var(--bg2);color:var(--accent)}
 .core-edit-btn svg{width:16px;height:16px}
-.core-prompt-ta{min-height:170px;font-size:14px;line-height:1.7;resize:vertical}
-.core-prompt-ta.rules-ta{min-height:200px}
+.core-prompt-ta{min-height:240px;font-size:14px;line-height:1.7;resize:vertical}
+.core-prompt-ta.rules-ta{min-height:150px}
 .core-meta{font-size:12px;color:var(--t4);text-align:right;margin-top:4px}
 .core-actions{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;margin:14px -2px 0;padding:10px 2px;background:linear-gradient(to top,var(--bg) 80%,rgba(255,255,255,0));z-index:2}
 .core-actions #prompt-len{font-size:12px;color:var(--t4);flex:1}
