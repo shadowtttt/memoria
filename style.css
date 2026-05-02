@@ -211,7 +211,11 @@ input,textarea,select,button{font-family:inherit}
 .mm-icon{width:22px;height:22px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;font-weight:700;color:#fff}
 .mm-body{display:flex;flex-direction:column;gap:1px;min-width:0}
 .mm-name{font-size:12px;color:var(--t3);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mm-info{font-size:11px;color:var(--t4);font-family:'JetBrains Mono',monospace;display:flex;gap:8px}
+.mm-info{font-size:11px;color:var(--t4);font-family:'JetBrains Mono',monospace;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.usage-detail{display:inline-flex;gap:6px;flex-wrap:wrap}
+.usage-detail>span{opacity:.75}
+.usage-detail .ud-hit{color:#4CAF50}
+.usage-detail .ud-write{color:#FF9800}
 .msg-imgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .msg-imgs img{max-width:220px;max-height:220px;border-radius:var(--radius-m);object-fit:cover;cursor:pointer;transition:all .2s}
 .msg-imgs img:hover{opacity:.9}.msg-imgs img:active{opacity:.7;transform:scale(.98)}
