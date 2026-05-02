@@ -122,6 +122,7 @@ input,textarea,select,button{font-family:inherit}
 .msg.assistant .mc{flex:1;min-width:0;padding:6px 0}
 .msg-acts{display:flex;gap:2px;margin-top:6px;align-items:center;opacity:0;transition:opacity .2s}
 .msg:hover .msg-acts,.msg-acts:focus-within{opacity:1}
+.msg-acts-visible{opacity:1}
 .msg.user .msg-acts{width:100%;justify-content:flex-end;padding-right:4px}
 .msg.assistant .msg-acts{width:100%;padding-left:0;justify-content:flex-start}
 .mab{width:28px;height:28px;border:none;background:none;color:var(--t4);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
