@@ -61,9 +61,13 @@ function saveAvatar(){const d={};const n=document.getElementById('av-name').valu
 function getCustomAvatar(){try{return JSON.parse(localStorage.getItem('memoria_avatar')||'{}');}catch(e){return {};}}
 
 // Core identity
-async function loadCore(){try{const d=await api('get_system_config',{key:'cross_window_memory'});const v=d?.value||'';document.getElementById('core-ta').value=v;document.getElementById('core-len').textContent=v.length+' 字符';}catch(e){document.getElementById('core-ta').value='';document.getElementById('core-len').textContent='加载失败';}}
-document.getElementById('core-ta')?.addEventListener('input',function(){document.getElementById('core-len').textContent=this.value.length+' 字符';});
-async function saveCore(){const v=document.getElementById('core-ta').value;try{await api('update_system_config',{key:'cross_window_memory',value:v});toast('已保存');}catch(e){toast('保存失败');}}
+function updCoreLens(){const c=document.getElementById('core-ta')?.value||'',r=document.getElementById('rules-ta')?.value||'';document.getElementById('core-len').textContent=c.length+' 字符';document.getElementById('rules-len').textContent=r.length+' 字符';}
+function setPromptPreview(text){const el=document.getElementById('core-preview');if(!el)return;el.textContent=text||'';document.getElementById('prompt-len').textContent=text?('完整 Prompt '+text.length+' 字符'):'';}
+async function loadCore(){try{const d=await api('get_system_prompt_config');document.getElementById('core-ta').value=d?.core||'';document.getElementById('rules-ta').value=d?.rules||'';setPromptPreview(d?.prompt||'');updCoreLens();}catch(e){try{const d=await api('get_system_config',{key:'cross_window_memory'});const v=d?.value||'';document.getElementById('core-ta').value=v;document.getElementById('rules-ta').value='';setPromptPreview('');updCoreLens();}catch(x){document.getElementById('core-ta').value='';document.getElementById('rules-ta').value='';document.getElementById('core-len').textContent='加载失败';document.getElementById('rules-len').textContent='加载失败';}}}
+document.getElementById('core-ta')?.addEventListener('input',updCoreLens);
+document.getElementById('rules-ta')?.addEventListener('input',updCoreLens);
+async function loadSystemPromptPreview(){try{const d=await api('get_system_prompt_config');setPromptPreview(d?.prompt||'');toast('已刷新预览');}catch(e){toast('预览失败');}}
+async function saveCore(){const core=document.getElementById('core-ta').value,rules=document.getElementById('rules-ta').value;try{await Promise.all([api('update_system_config',{key:'cross_window_memory',value:core}),api('update_system_config',{key:'system_prompt_rules',value:rules})]);toast('已保存');await loadSystemPromptPreview();}catch(e){toast('保存失败');}}
 
 // Chat Params
 const THINK_DESCS={off:'不启用思考模式',auto:'模型自动决定思考深度',light:'快速校验，~1024 tokens，适合日常对话',medium:'多步推理，~16K tokens，适合分析和代码',heavy:'深度推理，~32K tokens，适合复杂逻辑'};

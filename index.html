@@ -101,9 +101,15 @@
 
   <!-- Core Identity -->
   <div class="sp" id="sp-core"><div class="sp-hd"><button class="sp-bk" onclick="backSP()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h1>核心设定</h1></div><div class="sp-bd">
-    <div class="sg-l" style="margin-bottom:8px">此内容会作为 System Prompt 最顶层注入，跨所有对话窗口生效。</div>
-    <textarea id="core-ta" class="ed-ta" style="min-height:300px;font-size:14px;line-height:1.7"></textarea>
-    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end"><span id="core-len" style="font-size:12px;color:var(--t4);align-self:center;flex:1"></span><button class="btn btn-p" onclick="saveCore()">保存</button></div>
+    <div class="sg-l" style="margin-bottom:8px">人格设定会放在 System Prompt 最顶层；系统规则会替代后端默认的工具与行为规则。</div>
+    <label class="core-label">人格与长期设定</label>
+    <textarea id="core-ta" class="ed-ta core-prompt-ta"></textarea>
+    <div class="core-meta"><span id="core-len"></span></div>
+    <label class="core-label">系统规则</label>
+    <textarea id="rules-ta" class="ed-ta core-prompt-ta rules-ta"></textarea>
+    <div class="core-meta"><span id="rules-len"></span></div>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end"><span id="prompt-len" style="font-size:12px;color:var(--t4);align-self:center;flex:1"></span><button class="btn btn-g" onclick="loadSystemPromptPreview()">预览完整 Prompt</button><button class="btn btn-p" onclick="saveCore()">保存</button></div>
+    <pre id="core-preview" class="prompt-preview"></pre>
   </div></div>
 
   <div class="sp" id="sp-conn"><div class="sp-hd"><button class="sp-bk" onclick="backSP()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h1>连接设置</h1></div><div class="sp-bd">
