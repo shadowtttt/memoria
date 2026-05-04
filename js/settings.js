@@ -29,6 +29,27 @@ async function loadMdls(alsoSet){try{const d=await api('list_models');S.models=d
 async function loadMdlSet(){return loadMdls(true);}
 function rMdlSet(){const el=document.getElementById('m-list');if(!el)return;if(!S.models.length){el.innerHTML='<div class="sp-empty">暂无模型，请先添加供应商</div>';return;}el.innerHTML='<div class="sc">'+S.models.map(m=>'<div class="si" onclick="selMdl(\''+E(m.model_id)+'\')" style="cursor:pointer"><div class="si-info"><div class="si-n">'+E(m.display_name)+(m.is_default?' <span class="badge b-blue">默认</span>':'')+(m.is_utility?' <span class="badge b-orange">工具</span>':'')+(S.selModel===m.model_id?' <span class="badge b-green">当前</span>':'')+'</div><div class="si-d">'+E(m.model_id)+(m.providers?' · '+E(m.providers.name):'')+'</div></div></div>').join('')+'</div>';}
 function selMdl(mid){S.selModel=mid;localStorage.setItem('memoria_model',mid);updSub();closeSet();toast('已切换');}
+
+// Task models
+const MODEL_TASK_ORDER=['title','summary','memory_extract'];
+const MODEL_TASK_DEFAULTS={
+  title:{label:'标题生成',model_id:'',fallback:'utility',temperature:0.5,max_tokens:80},
+  summary:{label:'Block 总结',model_id:'',fallback:'deepseek',temperature:0.3,max_tokens:1024},
+  memory_extract:{label:'记忆提取',model_id:'',fallback:'deepseek',temperature:0.2,max_tokens:2048}
+};
+function _mtId(k){return 'mt-'+String(k).replace(/[^a-zA-Z0-9_-]/g,'_');}
+function _mtVal(k){return {...(MODEL_TASK_DEFAULTS[k]||{label:k,model_id:'',fallback:'utility',temperature:0.3,max_tokens:512}),...(S.modelTasks?.[k]||{})};}
+function _mtKeys(tasks){const ks=Object.keys(tasks||{});return MODEL_TASK_ORDER.concat(ks.filter(k=>!MODEL_TASK_ORDER.includes(k)));}
+function _mtModelOptions(selected){let html='<option value="">使用回退模型</option>';const known=new Set((S.models||[]).map(m=>m.model_id));if(selected&&!known.has(selected))html+='<option value="'+E(selected)+'" selected>'+E(selected)+'（未在列表）</option>';(S.models||[]).forEach(m=>{const label=(m.display_name||m.model_id)+(m.providers?.name?' · '+m.providers.name:'');html+='<option value="'+E(m.model_id)+'" '+(m.model_id===selected?'selected':'')+'>'+E(label)+'</option>';});return html;}
+function _mtFallbackOptions(selected){const opts=[['utility','工具模型'],['deepseek','DeepSeek 默认']];if(selected&&!opts.some(o=>o[0]===selected))opts.push([selected,selected]);return opts.map(o=>'<option value="'+E(o[0])+'" '+(o[0]===selected?'selected':'')+'>'+E(o[1])+'</option>').join('');}
+async function loadModelTasks(){const el=document.getElementById('mt-list');if(el)el.innerHTML='<div class="sp-empty">加载中...</div>';try{await loadMdls();const d=await api('get_model_tasks');S.modelTasks=d?.tasks||{};rModelTasks();}catch(e){if(el)el.innerHTML='<div class="sp-empty">加载失败</div>';toast('加载失败');}}
+function rModelTasks(){const el=document.getElementById('mt-list');if(!el)return;const keys=_mtKeys(S.modelTasks);S._modelTaskKeys=keys;if(!keys.length){el.innerHTML='<div class="sp-empty">暂无任务模型</div>';return;}el.innerHTML=keys.map(k=>{const t=_mtVal(k);const id=_mtId(k);const selected=t.model_id||'';return '<div class="sf mt-task">'+
+  '<div class="sf-row mt-head"><div><div class="mt-title">'+E(t.label||k)+'</div><div class="mt-key">'+E(k)+'</div></div>'+(selected?'<span class="badge b-green">已指定</span>':'<span class="badge b-orange">回退</span>')+'</div>'+
+  '<div class="sf-row"><label>模型</label><select id="'+id+'-model">'+_mtModelOptions(selected)+'</select></div>'+
+  '<div class="sf-row"><label>回退</label><select id="'+id+'-fallback">'+_mtFallbackOptions(t.fallback||'utility')+'</select></div>'+
+  '<div class="sf-row mt-grid"><div><label>Temperature</label><input id="'+id+'-temp" type="number" min="0" max="2" step="0.1" value="'+E(t.temperature??0.3)+'"></div><div><label>Max tokens</label><input id="'+id+'-max" type="number" min="1" step="1" value="'+E(t.max_tokens??512)+'"></div></div>'+
+  '</div>';}).join('');}
+async function saveModelTasks(){const keys=S._modelTaskKeys||MODEL_TASK_ORDER;const tasks={};keys.forEach(k=>{const base=_mtVal(k),id=_mtId(k);const model=document.getElementById(id+'-model')?.value||'';const fallback=document.getElementById(id+'-fallback')?.value||base.fallback||'utility';const tempRaw=parseFloat(document.getElementById(id+'-temp')?.value);const maxRaw=parseInt(document.getElementById(id+'-max')?.value,10);const temperature=Number.isFinite(tempRaw)?Math.max(0,Math.min(2,tempRaw)):(base.temperature??0.3);const max_tokens=Number.isFinite(maxRaw)?Math.max(1,maxRaw):(base.max_tokens??512);tasks[k]={label:base.label||k,model_id:model,fallback,temperature,max_tokens};});try{const d=await api('update_model_tasks',{tasks});S.modelTasks=d?.tasks||tasks;rModelTasks();toast('已保存');}catch(e){toast('保存失败');}}
 async function delMdl(id){try{await api('delete_model',{id});loadMdls(true);toast('已删除');}catch(e){toast('失败');}}
 
 // MCP

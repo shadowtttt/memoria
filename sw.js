@@ -1,4 +1,4 @@
-const CACHE = 'memoria-v11';
+const CACHE = 'memoria-v12';
 const PRECACHE = [
   './',
   './style.css',

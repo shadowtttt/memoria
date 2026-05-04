@@ -424,6 +424,11 @@ input,textarea,select,button{font-family:inherit}
 .sf-row label{font-size:12px;color:var(--t3);display:block;margin-bottom:4px;font-weight:500}
 .sf-row input,.sf-row select,.sf-row textarea{width:100%;padding:8px 0;border:none;background:none;font-size:15px;color:var(--t1);outline:none}
 .sf-row textarea{min-height:60px;resize:none;line-height:1.5}
+.mt-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mt-title{font-size:15px;font-weight:500;color:var(--t1)}
+.mt-key{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--t4);margin-top:1px}
+.mt-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:420px){.mt-grid{grid-template-columns:1fr}}
 .core-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 6px}
 .core-label{display:block;margin:0;font-size:12px;color:var(--t3);font-weight:600}
 .core-edit-btn{width:28px;height:28px;border:none;background:transparent;color:var(--t4);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
