@@ -182,7 +182,7 @@ async function _streamChat(act,params,sd,opts){
   }
   _strFinalize(sd,fthink,_clock);S.streaming=false;S.ac=null;updBtn();
   if(S._aborted&&ft){if(sd&&sd.parentNode)sd.remove();S.msgs.push({role:'assistant',content:ft,thinking_content:fthink||null,_partial:true});S._aborted=false;rMsgs();}
-  else if(S.cid){try{const _d=await api('get_messages',{conversation_id:S.cid});_storeTree(_d);if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}_cacheConv();_syncStreamDom(sd);rMsgs();}catch(x){}}
+  else if(S.cid){try{const _localMsgs=S.msgs.slice();const _d=await api('get_messages',{conversation_id:S.cid});_storeTree(_d);_mergeLocalMeta(_localMsgs);if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}_cacheConv();_syncStreamDom(sd);rMsgs();}catch(x){}}
   if(opts.onDone)opts.onDone();
 }
 
