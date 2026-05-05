@@ -92,7 +92,10 @@ async function doTest() {
 function renderResults(data, query) {
   const debug = data.debug || {};
   const candidates = debug.candidates || [];
+  const recalled = data.recalled || [];
   const count = data.count || 0;
+  const fullContentMap = {};
+  for (const r of recalled) { if (r.id) fullContentMap[r.id] = r.content || ''; }
 
   let html = '<div class="summary"><h3>总览</h3><div class="meta">';
   html += `查询文本: "${esc(query)}"<br>`;
@@ -119,7 +122,8 @@ function renderResults(data, query) {
         ? '<span class="badge yes">会注入</span>'
         : '<span class="badge no">不注入</span>';
       html += '</div>';
-      html += `<div class="content">${esc(c.content)}</div>`;
+      const fullText = fullContentMap[c.id] || c.content;
+      html += `<div class="content">${esc(fullText)}</div>`;
       html += '<div class="scores">';
       html += `<span>最终分: ${c.score.toFixed(4)}</span>`;
       if (c.score_detail) {
