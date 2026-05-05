@@ -615,3 +615,11 @@ input[type="range"]::-webkit-slider-thumb:hover{box-shadow:0 1px 6px rgba(174,86
   .mem-timeline{padding:0 12px}
   .mem-random-fab{bottom:16px;right:16px}
 }
+.usg-range{display:flex;gap:8px;padding:0 0 14px;flex-wrap:wrap}
+.usg-range-btn{padding:6px 16px;border-radius:16px;font-size:13px;border:1px solid var(--border);background:var(--bg2);color:var(--t3);cursor:pointer;transition:all .15s}
+.usg-range-btn.on{background:var(--t1);color:var(--bg);border-color:var(--t1)}
+.usg-tbl{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-m,12px);overflow:hidden;margin-bottom:8px;font-size:13px}
+.usg-tbl-h{display:flex;align-items:center;padding:10px 14px;background:var(--bg2);font-size:11px;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--sep)}
+.usg-tbl-r{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--sep);gap:8px}
+.usg-tbl-r:last-child{border-bottom:none}
+.usg-r{flex:1;text-align:right;font-variant-numeric:tabular-nums}
