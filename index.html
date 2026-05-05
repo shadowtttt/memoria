@@ -14,7 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" defer></script>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVtb3JpYSIsInNob3J0X25hbWUiOiJNZW1vcmlhIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmMGViZTEiLCJ0aGVtZV9jb2xvciI6IiNmMGViZTEifQ==">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 <div id="app">
@@ -231,7 +231,7 @@
         <div id="pd-mdl-form" class="sf" style="display:none;margin-top:12px">
           <div class="sf-row"><label>Model ID</label><input id="pd-mid" placeholder="deepseek-chat"></div>
           <div class="sf-row"><label>显示名称</label><input id="pd-mname" placeholder="DeepSeek V3"></div>
-          <div style="display:flex;gap:20px;padding:12px 16px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="pd-mdef"> 默认</label><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="pd-mutil"> 工具模型</label></div>
+          <div style="display:flex;gap:20px;padding:12px 16px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="pd-mdef"> 默认</label></div>
           <div class="sf-btns" style="padding:12px 16px"><button class="btn btn-g btn-s" onclick="hEl('pd-mdl-form')">取消</button><button class="btn btn-p btn-s" onclick="saveProvMdl()">保存</button></div>
         </div>
         <div id="pd-preset-models" style="display:none;margin-top:16px"><div class="sg-l" id="pd-preset-label">推荐模型</div><div id="pd-fetch-search" style="display:none;padding:0 0 8px"><input id="pd-fetch-q" type="text" placeholder="搜索模型..." oninput="filterFetchedModels()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg2);outline:none"></div><div id="pd-preset-list" class="sl" style="max-height:60vh;overflow-y:auto"></div></div>
@@ -278,9 +278,9 @@
 <div id="toast"></div>
 </div>
 
-<script src="js/core.js?v=19"></script>
-<script src="js/sidebar.js?v=19"></script>
-<script src="js/chat.js?v=19"></script>
-<script src="js/settings.js?v=19"></script>
+<script src="js/core.js?v=20"></script>
+<script src="js/sidebar.js?v=20"></script>
+<script src="js/chat.js?v=20"></script>
+<script src="js/settings.js?v=20"></script>
 </body>
 </html>
