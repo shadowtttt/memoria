@@ -131,6 +131,8 @@ function renderResults(data, query) {
         if (d.similarity !== undefined) html += `<span>相似度: ${d.similarity.toFixed(4)}</span>`;
         if (d.importance !== undefined) html += `<span>重要度: ${d.importance}</span>`;
         if (d.recency !== undefined) html += `<span>时效: ${d.recency.toFixed(3)}</span>`;
+        if (d.reinforcement !== undefined) html += `<span>强化: ${d.reinforcement.toFixed(2)}</span>`;
+        if (d.hit !== undefined && d.hit !== null) html += `<span>召回次数: ${d.hit}</span>`;
         if (d.cooldown !== undefined) html += `<span>冷却: ${d.cooldown.toFixed(2)}</span>`;
       }
       if (c.tags && c.tags.length > 0) html += `<span>标签: ${c.tags.map(esc).join(', ')}</span>`;
