@@ -1,11 +1,11 @@
-const CACHE = 'memoria-v12';
+const CACHE = 'memoria-v13';
 const PRECACHE = [
   './',
-  './style.css',
-  './js/core.js',
-  './js/sidebar.js',
-  './js/chat.js',
-  './js/settings.js',
+  './style.css?v=13',
+  './js/core.js?v=13',
+  './js/sidebar.js?v=13',
+  './js/chat.js?v=13',
+  './js/settings.js?v=13',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css'
 ];
@@ -59,36 +59,47 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Own CSS/JS: stale-while-revalidate
+  // Own CSS/JS: network-first so updated HTML never pairs with stale scripts.
   if (url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
     if (url.hostname === location.hostname) {
       e.respondWith(
-        caches.match(e.request).then(cached => {
-          const fetchPromise = fetch(e.request).then(res => {
+        fetch(e.request).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => caches.match(e.request))
+      );
+      return;
+    }
+  }
+
+  // HTML page: network-first to avoid mixed-version app shells.
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Other same-origin assets: stale-while-revalidate
+  if (url.hostname === location.hostname) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        const fetchPromise = fetch(e.request).then(res => {
             if (res.ok) {
               const clone = res.clone();
               caches.open(CACHE).then(c => c.put(e.request, clone));
             }
             return res;
           }).catch(() => cached);
-          return cached || fetchPromise;
-        })
-      );
-      return;
-    }
-  }
-
-  // HTML page: stale-while-revalidate
-  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
-    e.respondWith(
-      caches.match(e.request).then(cached => {
-        const fetchPromise = fetch(e.request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return res;
-        }).catch(() => cached);
         return cached || fetchPromise;
       })
     );

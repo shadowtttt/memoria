@@ -14,7 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" defer></script>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVtb3JpYSIsInNob3J0X25hbWUiOiJNZW1vcmlhIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmMGViZTEiLCJ0aGVtZV9jb2xvciI6IiNmMGViZTEifQ==">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <div id="app">
@@ -193,7 +193,7 @@
 
   <!-- Task Models -->
   <div class="sp" id="sp-modeltasks"><div class="sp-hd"><button class="sp-bk" onclick="backSP()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h1>任务模型</h1></div><div class="sp-bd">
-    <div id="mt-list"></div>
+    <div id="mt-list"><div class="sp-empty">加载中...</div></div>
     <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-g" style="flex:1" onclick="loadModelTasks()">重置</button><button class="btn btn-p" style="flex:1" onclick="saveModelTasks()">保存</button></div>
   </div></div>
 
@@ -278,9 +278,9 @@
 <div id="toast"></div>
 </div>
 
-<script src="js/core.js"></script>
-<script src="js/sidebar.js"></script>
-<script src="js/chat.js"></script>
-<script src="js/settings.js"></script>
+<script src="js/core.js?v=13"></script>
+<script src="js/sidebar.js?v=13"></script>
+<script src="js/chat.js?v=13"></script>
+<script src="js/settings.js?v=13"></script>
 </body>
 </html>
