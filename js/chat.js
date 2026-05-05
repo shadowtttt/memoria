@@ -177,7 +177,7 @@ async function _streamChat(act,params,sd,opts){
     }
   }catch(e){
     S._aborted=(e.name==='AbortError');
-    if(!S._aborted)toast(opts.errMsg||'失败');
+    if(!S._aborted)toast(apiErrMsg(e,opts.errMsg||'失败'));
     if(!ft&&sd.parentNode)sd.remove();
   }
   _strFinalize(sd,fthink,_clock);S.streaming=false;S.ac=null;updBtn();
