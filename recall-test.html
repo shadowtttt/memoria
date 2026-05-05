@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆召回测试</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; min-height: 100vh; }
+h1 { font-size: 1.3em; margin-bottom: 16px; color: #fff; }
+.config { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.config input { flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; }
+.query-row { display: flex; gap: 10px; margin-bottom: 16px; }
+.query-row input { flex: 1; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; }
+button { padding: 10px 20px; border: none; border-radius: 8px; background: #4a6fa5; color: #fff; font-size: 14px; cursor: pointer; white-space: nowrap; }
+button:hover { background: #5a8fc5; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.status { margin-bottom: 12px; font-size: 13px; color: #888; }
+.results { margin-top: 16px; }
+.summary { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid #333; }
+.summary h3 { font-size: 14px; margin-bottom: 8px; color: #8ab4f8; }
+.summary .meta { font-size: 12px; color: #999; line-height: 1.8; }
+.card { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 4px solid #555; }
+.card.selected { border-left-color: #4caf50; }
+.card.rejected { border-left-color: #f44336; opacity: 0.7; }
+.card .rank { font-size: 12px; color: #888; margin-bottom: 4px; }
+.card .content { font-size: 14px; margin-bottom: 8px; line-height: 1.5; }
+.card .scores { font-size: 12px; color: #aaa; display: flex; flex-wrap: wrap; gap: 8px; }
+.card .scores span { background: #0d1b2a; padding: 2px 8px; border-radius: 4px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+.badge.yes { background: #1b5e20; color: #a5d6a7; }
+.badge.no { background: #4a1515; color: #ef9a9a; }
+.empty { text-align: center; color: #666; padding: 40px; }
+</style>
+</head>
+<body>
+<h1>记忆召回测试工具</h1>
+<div class="config">
+  <input type="text" id="api-url" placeholder="API 地址" value="https://api.catdial.org">
+  <input type="password" id="pin" placeholder="PIN">
+</div>
+<div class="query-row">
+  <input type="text" id="query" placeholder="输入关键词或一句话来测试召回..." autofocus>
+  <button id="test-btn" onclick="doTest()">测试</button>
+</div>
+<div class="status" id="status"></div>
+<div class="results" id="results"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+if (localStorage.getItem('recall_pin')) $('pin').value = localStorage.getItem('recall_pin');
+if (localStorage.getItem('recall_api')) $('api-url').value = localStorage.getItem('recall_api');
+
+$('query').addEventListener('keydown', e => { if (e.key === 'Enter') doTest(); });
+
+async function doTest() {
+  const api = $('api-url').value.trim();
+  const pin = $('pin').value.trim();
+  const query = $('query').value.trim();
+  if (!query) return;
+  if (!pin) { $('status').textContent = '请输入 PIN'; return; }
+
+  localStorage.setItem('recall_pin', pin);
+  localStorage.setItem('recall_api', api);
+
+  $('test-btn').disabled = true;
+  $('status').textContent = '查询中...';
+  $('results').innerHTML = '';
+
+  try {
+    const res = await fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': pin },
+      body: JSON.stringify({ action: 'debug_memory_recall', message: query })
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      $('status').textContent = `错误 ${res.status}: ${t}`;
+      return;
+    }
+    const data = await res.json();
+    renderResults(data, query);
+    $('status').textContent = '';
+  } catch (e) {
+    $('status').textContent = '请求失败: ' + e.message;
+  } finally {
+    $('test-btn').disabled = false;
+  }
+}
+
+function renderResults(data, query) {
+  const debug = data.debug || {};
+  const candidates = debug.candidates || [];
+  const count = data.count || 0;
+
+  let html = '<div class="summary"><h3>总览</h3><div class="meta">';
+  html += `查询文本: "${esc(query)}"<br>`;
+  if (debug.entities && debug.entities.length > 0) {
+    html += `提取实体: ${debug.entities.map(e => esc(e)).join(', ')}<br>`;
+  }
+  html += `候选数: ${candidates.length}<br>`;
+  html += `召回数: ${count}<br>`;
+  if (debug.top_similarity !== undefined) html += `最高相似度: ${debug.top_similarity.toFixed(4)}<br>`;
+  html += `最低相似度门槛: ${debug.min_top_similarity}<br>`;
+  html += `最终分数门槛: ${debug.threshold}<br>`;
+  html += `召回上限: ${debug.primary_limit}<br>`;
+  if (debug.skipped_reason) html += `<span style="color:#f44336">跳过原因: ${debug.skipped_reason}</span><br>`;
+  html += '</div></div>';
+
+  if (candidates.length === 0) {
+    html += '<div class="empty">没有找到候选记忆</div>';
+  } else {
+    for (const c of candidates) {
+      const sel = c.selected;
+      html += `<div class="card ${sel ? 'selected' : 'rejected'}">`;
+      html += `<div class="rank">#${c.rank}`;
+      html += sel
+        ? '<span class="badge yes">会注入</span>'
+        : '<span class="badge no">不注入</span>';
+      html += '</div>';
+      html += `<div class="content">${esc(c.content)}</div>`;
+      html += '<div class="scores">';
+      html += `<span>最终分: ${c.score.toFixed(4)}</span>`;
+      if (c.score_detail) {
+        const d = c.score_detail;
+        if (d.similarity !== undefined) html += `<span>相似度: ${d.similarity.toFixed(4)}</span>`;
+        if (d.importance !== undefined) html += `<span>重要度: ${d.importance}</span>`;
+        if (d.recency !== undefined) html += `<span>时效: ${d.recency.toFixed(3)}</span>`;
+        if (d.cooldown !== undefined) html += `<span>冷却: ${d.cooldown.toFixed(2)}</span>`;
+      }
+      if (c.tags && c.tags.length > 0) html += `<span>标签: ${c.tags.map(esc).join(', ')}</span>`;
+      html += '</div></div>';
+    }
+  }
+
+  $('results').innerHTML = html;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>
