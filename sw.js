@@ -1,11 +1,11 @@
-const CACHE = 'memoria-v17';
+const CACHE = 'memoria-v19';
 const PRECACHE = [
   './',
-  './style.css?v=17',
-  './js/core.js?v=17',
-  './js/sidebar.js?v=17',
-  './js/chat.js?v=17',
-  './js/settings.js?v=17',
+  './style.css?v=19',
+  './js/core.js?v=19',
+  './js/sidebar.js?v=19',
+  './js/chat.js?v=19',
+  './js/settings.js?v=19',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css'
 ];
