@@ -245,7 +245,7 @@ async function _streamChat(act,params,sd,opts){
     if(!ft&&sd.parentNode)sd.remove();
   }
   _strFinalize(sd,fthink,_clock);S.streaming=false;S.ac=null;updBtn();
-  if(S._aborted&&ft){if(sd&&sd.parentNode)sd.remove();S.msgs.push({role:'assistant',content:ft,thinking_content:fthink||null,_partial:true});S._aborted=false;rMsgs();}
+  if(S._aborted&&ft){if(sd&&sd.parentNode)sd.remove();S.msgs.push({role:'assistant',content:ft,thinking_content:fthink||null,_partial:true});S._aborted=false;rMsgs();_invalidateConvDates(S.cid);}
   else if(S.cid){try{
     const _localMsgs=S.msgs.slice();
     const mode=opts.mergeMode||'merge';
@@ -258,7 +258,7 @@ async function _streamChat(act,params,sd,opts){
     }
     _mergeLocalMeta(_localMsgs);
     if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}
-    _cacheConv();_syncStreamDom(sd);rMsgs();
+    _cacheConv();_invalidateConvDates(S.cid);_syncStreamDom(sd);rMsgs();
   }catch(x){}}
   if(opts.onDone)opts.onDone();
 }
@@ -364,7 +364,7 @@ async function switchBranch(msgId,direction){
     const d=await api('get_messages_around',{message_id:targetId,window:25});
     _storeTree(d);rMsgs();
     setTimeout(()=>{const el=document.querySelector('.msg[data-id="'+targetId+'"]');if(el)el.scrollIntoView({block:'center'});},50);
-    _cacheConv();
+    _cacheConv();_invalidateConvDates(S.cid);
   }catch(e){toast('切换失败');}
 }
 
@@ -374,9 +374,9 @@ function closeMAS(){document.getElementById('msg-act-sheet').classList.remove('o
 async function dlM(i){const m=S.msgs[i];if(!m?.id)return;confirm_('删除消息','确定删除？',async()=>{try{await api('delete_message',{message_id:m.id,conversation_id:S.cid});S.msgs.splice(i,1);
 /* 删的是首条边界消息时重算 nextBeforeId，避免后续 loadOlder cursor 指向已删 id */
 if(i===0&&S.hasMoreOlder){S.nextBeforeId=S.msgs[0]?.id||null;}
-rMsgs();_cacheConv();toast('已删除');}catch(e){toast('失败');}});}
+rMsgs();_cacheConv();_invalidateConvDates(S.cid);toast('已删除');}catch(e){toast('失败');}});}
 function edM(i){const m=S.msgs[i];if(!m||m.role!=='user')return;const el=document.querySelector('.msg[data-idx="'+i+'"]');if(!el)return;const ce=el.querySelector('.mc'),ae=el.querySelector('.msg-acts');ce.innerHTML='<textarea class="ed-ta">'+E(m.content)+'</textarea>';ae.innerHTML='<div class="ed-btns"><button class="btn btn-g btn-s" onclick="rMsgs()">取消</button><button class="btn btn-p btn-s" onclick="svEd('+i+')">保存</button></div>';ce.querySelector('textarea').focus();}
-async function svEd(i){const m=S.msgs[i],ta=document.querySelector('.msg[data-idx="'+i+'"] .ed-ta');if(!ta||!m.id)return;const nc=ta.value.trim();if(!nc)return;try{await api('edit_message',{message_id:m.id,content:nc});m.content=nc;rMsgs();_cacheConv();toast('已保存');}catch(e){toast('失败');}}
+async function svEd(i){const m=S.msgs[i],ta=document.querySelector('.msg[data-idx="'+i+'"] .ed-ta');if(!ta||!m.id)return;const nc=ta.value.trim();if(!nc)return;try{await api('edit_message',{message_id:m.id,content:nc});m.content=nc;rMsgs();_cacheConv();_invalidateConvDates(S.cid);toast('已保存');}catch(e){toast('失败');}}
 function hideMsgsFrom(idx){const msgEls=document.querySelectorAll('#msgs .msg');const hidden=[];msgEls.forEach(el=>{const i=parseInt(el.getAttribute('data-idx'));if(i>=idx){el.style.display='none';hidden.push(el);}});return hidden;}
 async function regen(messageId,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;if(idx!==undefined)hideMsgsFrom(idx);const sd=appStr();const params={conversation_id:S.cid,model:gMdl()};if(messageId)params.message_id=messageId;await _streamChat('regenerate',params,sd,{mergeMode:'reset-to-latest',onNoRes:function(){rMsgs();}});}
 async function regenUser(m,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;hideMsgsFrom(idx);const msgsEl=document.getElementById('msgs');const tmpUser=document.createElement('div');tmpUser.className='msg user';let tmpContent=E(m.content).replace(/\n/g,'<br>');let tmpImgs='';if(m.attachments&&m.attachments.length>0){const imgAtts=m.attachments.filter(a=>a.type==='image'&&a.url);if(imgAtts.length)tmpImgs='<div class="msg-imgs">'+imgAtts.map(a=>'<img src="'+a.url+'" loading="lazy">').join('')+'</div>';const docAtts=m.attachments.filter(a=>a.type==='document');if(docAtts.length)tmpImgs+='<div class="msg-docs">'+docAtts.map(a=>'<div class="doc-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>'+E(a.name)+'</span></div>').join('')+'</div>';}tmpUser.innerHTML=tmpImgs+(tmpContent?'<div class="mc">'+tmpContent+'</div>':'');msgsEl.appendChild(tmpUser);const sd=appStr();const chatParams={conversation_id:S.cid,message:m.content,model:gMdl(),is_regen:true};if(S.recallDebug)chatParams.debug_memory_recall=true;const prevMsg=idx>0?S.msgs[idx-1]:null;if(prevMsg?.id)chatParams.parent_id=prevMsg.id;if(m.attachments){const imgUrls=m.attachments.filter(a=>a.type==='image'&&a.url).map(a=>a.url);if(imgUrls.length>0)chatParams.images=imgUrls;const docs=m.attachments.filter(a=>a.type==='document');if(docs.length>0)chatParams.documents=docs.map(d=>({name:d.name,content:d.text||''}));}await _streamChat('chat',chatParams,sd,{handleMeta:true,mergeMode:'reset-to-latest',onNoRes:function(){rMsgs();}});}

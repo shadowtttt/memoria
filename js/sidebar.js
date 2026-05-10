@@ -46,3 +46,94 @@ document.getElementById('conv-list').addEventListener('touchstart',e=>{const ci=
 document.getElementById('conv-list').addEventListener('touchend',()=>clearTimeout(lpt),{passive:true});
 document.getElementById('conv-list').addEventListener('touchmove',()=>clearTimeout(lpt),{passive:true});
 
+// === 当前对话日历 ===
+async function openConvCalendar(){
+  if(!S.cid){toast('请先选择一个对话');return;}
+  if(S.streaming){toast('回复生成中，稍后再跳转');return;}
+  const cid=S.cid;
+  S.convCalCid=cid;
+  const mo=document.getElementById('conv-cal-mo');
+  const grid=document.getElementById('cal-grid');
+  grid.replaceChildren();
+  const loading=document.createElement('div');loading.className='cal-loading';loading.textContent='加载中…';grid.appendChild(loading);
+  mo.classList.add('on');
+  let dates=S.convDatesCache[cid];
+  if(!dates){
+    try{
+      const d=await api('get_conversation_dates',{conversation_id:cid});
+      if(S.cid!==cid||S.convCalCid!==cid){if(S.convCalCid===cid)closeConvCal();return;}
+      const list=(d?.messages||[]).map(m=>({id:m.id,dayKey:_dayKey(m.created_at),ts:m.created_at})).filter(x=>x.dayKey);
+      S.convDatesCache[cid]=list;
+      dates=list;
+    }catch(e){
+      if(S.cid!==cid||S.convCalCid!==cid){if(S.convCalCid===cid)closeConvCal();return;}
+      toast('加载失败');closeConvCal();return;
+    }
+  }
+  if(S.cid!==cid||S.convCalCid!==cid){if(S.convCalCid===cid)closeConvCal();return;}
+  const latest=dates.length>0?new Date(dates[dates.length-1].ts):new Date();
+  S.convCalShown=latest.getFullYear()+'-'+String(latest.getMonth()+1).padStart(2,'0');
+  _renderConvCal(dates);
+}
+function closeConvCal(){document.getElementById('conv-cal-mo').classList.remove('on');S.convCalShown=null;S.convCalCid=null;}
+function convCalShift(delta){
+  if(!S.convCalShown||!S.convCalCid)return;
+  const [y,m]=S.convCalShown.split('-').map(Number);
+  const d=new Date(y,m-1+delta,1);
+  S.convCalShown=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  _renderConvCal(S.convDatesCache[S.convCalCid]||[]);
+}
+function _renderConvCal(dates){
+  const [y,m]=S.convCalShown.split('-').map(Number);
+  document.getElementById('cal-title').textContent=y+'年'+m+'月';
+  const byDay=new Map();
+  for(const d of dates){if(!byDay.has(d.dayKey))byDay.set(d.dayKey,d.id);}
+  const first=new Date(y,m-1,1);
+  const daysInMonth=new Date(y,m,0).getDate();
+  const firstWeekday=first.getDay();
+  const grid=document.getElementById('cal-grid');
+  grid.replaceChildren();
+  const wkRow=document.createElement('div');wkRow.className='cal-wk-row';
+  ['日','一','二','三','四','五','六'].forEach(w=>{const c=document.createElement('div');c.className='cal-wk';c.textContent=w;wkRow.appendChild(c);});
+  grid.appendChild(wkRow);
+  const daysWrap=document.createElement('div');daysWrap.className='cal-days';
+  for(let i=0;i<firstWeekday;i++){const empty=document.createElement('div');empty.className='cal-day cal-day-empty';daysWrap.appendChild(empty);}
+  const today=_dayKey(new Date().toISOString());
+  for(let day=1;day<=daysInMonth;day++){
+    const dk=y+'-'+String(m).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const cell=document.createElement('div');cell.className='cal-day';
+    if(dk===today)cell.classList.add('cal-day-today');
+    cell.textContent=day;
+    if(byDay.has(dk)){
+      cell.classList.add('cal-day-active');
+      cell.dataset.id=byDay.get(dk);
+      const targetId=byDay.get(dk);
+      cell.onclick=()=>_convCalJumpTo(targetId);
+    }
+    daysWrap.appendChild(cell);
+  }
+  grid.appendChild(daysWrap);
+}
+async function _convCalJumpTo(messageId){
+  if(S.streaming){toast('回复生成中，稍后再跳转');return;}
+  const cid=S.convCalCid||S.cid;
+  closeConvCal();
+  S._hlMsgId=messageId;
+  try{
+    const d=await api('get_messages_around',{message_id:messageId,window:25});
+    if(S.cid!==cid){S._hlMsgId=null;return;}
+    _storeTree(d);rMsgs();
+  }catch(e){
+    if(S.cid!==cid){S._hlMsgId=null;return;}
+    if(e?.body&&String(e.body).includes('inactive')){toast('该消息在已切换走的旧分支');}
+    else{toast('跳转失败');}
+    S._hlMsgId=null;return;
+  }
+  setTimeout(()=>{
+    if(S.cid!==cid){S._hlMsgId=null;return;}
+    const el=document.querySelector('.msg[data-id="'+messageId+'"]');
+    if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.classList.add('hl');setTimeout(()=>el.classList.remove('hl'),2500);}
+    S._hlMsgId=null;
+  },200);
+}
+

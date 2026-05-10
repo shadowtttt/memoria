@@ -1,4 +1,5 @@
-const S={apiUrl:localStorage.getItem('memoria_url')||'',pin:localStorage.getItem('memoria_pin')||'',cid:null,convs:[],allC:[],msgs:[],allMsgs:[],treeMeta:[],hasMoreOlder:false,nextBeforeId:null,hasMoreAfter:false,isPartialView:false,loadingOlder:false,streaming:false,ac:null,models:[],provs:[],stk:[],selModel:localStorage.getItem('memoria_model')||'',attachments:[],curFolder:null,searchQ:'',searchResults:null,searchTimer:null,_hlMsgId:null,recallDebug:localStorage.getItem('memoria_recall_debug')==='1'};
+const S={apiUrl:localStorage.getItem('memoria_url')||'',pin:localStorage.getItem('memoria_pin')||'',cid:null,convs:[],allC:[],msgs:[],allMsgs:[],treeMeta:[],hasMoreOlder:false,nextBeforeId:null,hasMoreAfter:false,isPartialView:false,loadingOlder:false,streaming:false,ac:null,models:[],provs:[],stk:[],selModel:localStorage.getItem('memoria_model')||'',attachments:[],curFolder:null,searchQ:'',searchResults:null,searchTimer:null,_hlMsgId:null,recallDebug:localStorage.getItem('memoria_recall_debug')==='1',convDatesCache:{},convCalShown:null,convCalCid:null};
+function _invalidateConvDates(cid){if(cid&&S.convDatesCache)delete S.convDatesCache[cid];}
 
 // === IndexedDB 本地缓存层 ===
 const IDB={db:null,NAME:'memoria_cache',VER:1};

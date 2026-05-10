@@ -633,3 +633,20 @@ input[type="range"]::-webkit-slider-thumb:hover{box-shadow:0 1px 6px rgba(174,86
 .partial-banner{position:sticky;bottom:8px;display:flex;justify-content:center;pointer-events:none;z-index:10}
 .partial-banner button{pointer-events:auto;background:var(--accent);color:#fff;border:0;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:background .15s}
 .partial-banner button:hover{background:var(--accent-hover)}
+
+/* === 当前对话日历模态框 === */
+.conv-cal-box{max-width:340px;width:90vw;padding:16px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-title{font-weight:600;font-size:15px;color:var(--t1)}
+.cal-nav{background:none;border:none;color:var(--t3);cursor:pointer;padding:6px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.cal-nav svg{width:18px;height:18px}
+.cal-nav:hover{background:var(--bg-soft);color:var(--t1)}
+.cal-wk-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.cal-wk{text-align:center;font-size:11px;color:var(--t4);padding:4px 0}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--t3);border-radius:6px;cursor:default;user-select:none}
+.cal-day-empty{visibility:hidden}
+.cal-day-today{outline:1px solid var(--t4);outline-offset:-2px}
+.cal-day-active{background:var(--accent);color:#fff;cursor:pointer;font-weight:500}
+.cal-day-active:hover{background:var(--accent-hover)}
+.cal-loading{padding:40px 0;text-align:center;color:var(--t4);font-size:13px;grid-column:1/-1}

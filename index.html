@@ -14,7 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" defer></script>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVtb3JpYSIsInNob3J0X25hbWUiOiJNZW1vcmlhIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmMGViZTEiLCJ0aGVtZV9jb2xvciI6IiNmMGViZTEifQ==">
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 </head>
 <body>
 <div id="app">
@@ -47,6 +47,7 @@
       <div class="h-title" id="h-t">新对话</div>
     </div>
     <div class="h-acts">
+      <button class="h-btn" onclick="openConvCalendar()" title="按日期跳转"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
       <button class="h-btn" onclick="openQuickSP('notes')" title="便签"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></button>
       <button class="h-btn" onclick="newConv()" title="新对话"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
     </div>
@@ -298,14 +299,15 @@
 <div id="folder-picker" class="mo" onclick="if(event.target===this)closeFP()"><div class="mo-box" style="max-width:300px"><h3 style="margin-bottom:12px">选择文件夹</h3><div id="fp-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div><div style="display:flex;gap:8px;margin-top:12px"><input id="fp-new" placeholder="新建文件夹" style="flex:1;padding:8px 12px;border:1px solid var(--bg3);border-radius:8px;font-size:14px;outline:none"><button class="btn btn-p btn-s" onclick="addFolderFromPicker()">创建</button></div><div style="margin-top:8px"><button class="btn btn-g btn-s" style="width:100%" onclick="closeFP()">取消</button></div></div></div>
 <div id="msg-act-sheet" onclick="if(event.target===this)closeMAS()"><div class="mas-box"><div class="mas-handle"></div><div id="mas-items"></div><div class="mas-cancel" onclick="closeMAS()">取消</div></div></div>
 <div id="cf-mo" class="mo" onclick="if(event.target===this)cMo()"><div class="mo-box"><h3 id="cf-t">确认</h3><p id="cf-tx"></p><div class="mo-btns"><button class="btn btn-g" onclick="cMo()">取消</button><button class="btn btn-d" id="cf-ok">确认</button></div></div></div>
+<div id="conv-cal-mo" class="mo" onclick="if(event.target===this)closeConvCal()"><div class="mo-box conv-cal-box"><div class="cal-head"><button class="cal-nav" onclick="convCalShift(-1)" title="上个月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button><div class="cal-title" id="cal-title"></div><button class="cal-nav" onclick="convCalShift(1)" title="下个月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button></div><div class="cal-grid" id="cal-grid"></div><button class="btn btn-g" onclick="closeConvCal()" style="width:100%;margin-top:8px">关闭</button></div></div>
 <div id="toast"></div>
 </div>
 
-<script src="js/core.js?v=24"></script>
-<script src="js/sidebar.js?v=24"></script>
-<script src="js/chat.js?v=24"></script>
-<script src="js/settings.js?v=24"></script>
-<script src="js/memories.js?v=24"></script>
-<script src="js/usage.js?v=24"></script>
+<script src="js/core.js?v=25"></script>
+<script src="js/sidebar.js?v=25"></script>
+<script src="js/chat.js?v=25"></script>
+<script src="js/settings.js?v=25"></script>
+<script src="js/memories.js?v=25"></script>
+<script src="js/usage.js?v=25"></script>
 </body>
 </html>
