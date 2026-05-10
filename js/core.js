@@ -1,17 +1,68 @@
-const S={apiUrl:localStorage.getItem('memoria_url')||'',pin:localStorage.getItem('memoria_pin')||'',cid:null,convs:[],allC:[],msgs:[],allMsgs:[],streaming:false,ac:null,models:[],provs:[],stk:[],selModel:localStorage.getItem('memoria_model')||'',attachments:[],curFolder:null,searchQ:'',searchResults:null,searchTimer:null,_hlMsgId:null,recallDebug:localStorage.getItem('memoria_recall_debug')==='1'};
+const S={apiUrl:localStorage.getItem('memoria_url')||'',pin:localStorage.getItem('memoria_pin')||'',cid:null,convs:[],allC:[],msgs:[],allMsgs:[],treeMeta:[],hasMoreOlder:false,nextBeforeId:null,hasMoreAfter:false,isPartialView:false,loadingOlder:false,streaming:false,ac:null,models:[],provs:[],stk:[],selModel:localStorage.getItem('memoria_model')||'',attachments:[],curFolder:null,searchQ:'',searchResults:null,searchTimer:null,_hlMsgId:null,recallDebug:localStorage.getItem('memoria_recall_debug')==='1'};
 
 // === IndexedDB 本地缓存层 ===
 const IDB={db:null,NAME:'memoria_cache',VER:1};
 function _idbOpen(){return new Promise((res,rej)=>{if(IDB.db)return res(IDB.db);const rq=indexedDB.open(IDB.NAME,IDB.VER);rq.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('convs'))db.createObjectStore('convs',{keyPath:'id'});};rq.onsuccess=e=>{IDB.db=e.target.result;res(IDB.db);};rq.onerror=()=>rej(rq.error);});}
-async function _idbGet(cid){try{const db=await _idbOpen();return new Promise((res,rej)=>{const tx=db.transaction('convs','readonly');const st=tx.objectStore('convs');const rq=st.get(cid);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null);});}catch(e){return null;}}
-async function _idbPut(cid,allMsgs,msgs){try{const db=await _idbOpen();const _clone=typeof structuredClone==='function'?structuredClone:o=>JSON.parse(JSON.stringify(o));const data={id:cid,allMsgs:_clone(allMsgs||[]),msgs:_clone(msgs||[]),ts:Date.now()};return new Promise((res,rej)=>{const tx=db.transaction('convs','readwrite');const st=tx.objectStore('convs');st.put(data);tx.oncomplete=()=>{res(true);_idbTrim();};tx.onerror=()=>res(false);});}catch(e){return false;}}
+async function _idbGet(cid){try{const db=await _idbOpen();const r=await new Promise((res)=>{const tx=db.transaction('convs','readonly');const st=tx.objectStore('convs');const rq=st.get(cid);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null);});if(!r)return null;/* 旧 schema 失效 */if((r.schema_v||1)<2){await _idbDel(cid);return null;}return r;}catch(e){return null;}}
+async function _idbPut(cid,msgs,treeMeta,paging){try{const db=await _idbOpen();const _clone=typeof structuredClone==='function'?structuredClone:o=>JSON.parse(JSON.stringify(o));const data={id:cid,schema_v:2,msgs:_clone(msgs||[]),treeMeta:_clone(treeMeta||[]),hasMoreOlder:!!(paging&&paging.hasMoreOlder),nextBeforeId:paging?.nextBeforeId||null,ts:Date.now()};return new Promise((res,rej)=>{const tx=db.transaction('convs','readwrite');const st=tx.objectStore('convs');st.put(data);tx.oncomplete=()=>{res(true);_idbTrim();};tx.onerror=()=>res(false);});}catch(e){return false;}}
 async function _idbTrim(){try{const db=await _idbOpen();const tx=db.transaction('convs','readonly');const st=tx.objectStore('convs');const all=await new Promise(r=>{const rq=st.getAll();rq.onsuccess=()=>r(rq.result||[]);rq.onerror=()=>r([]);});if(all.length<=100)return;all.sort((a,b)=>b.ts-a.ts);const toDelete=all.slice(100);const tx2=db.transaction('convs','readwrite');const st2=tx2.objectStore('convs');toDelete.forEach(d=>st2.delete(d.id));}catch(e){}}
 async function _idbDel(cid){try{const db=await _idbOpen();return new Promise((res)=>{const tx=db.transaction('convs','readwrite');tx.objectStore('convs').delete(cid);tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);});}catch(e){return false;}}
-function _cacheConv(){if(!S.cid)return;_idbPut(S.cid,S.allMsgs,S.msgs);}
+function _cacheConv(){if(!S.cid)return;if(S.isPartialView)return;/* partial 视图不写主缓存 */
+/* 只存 latest 50 条作为 cache，避免用户 loadOlder 后 cache 体积膨胀、首屏变慢 */
+const latest=S.msgs.slice(-50);const cacheHasMoreOlder=S.msgs.length>50||S.hasMoreOlder;const cacheNextBeforeId=latest.length>0?latest[0].id:null;_idbPut(S.cid,latest,S.treeMeta,{hasMoreOlder:cacheHasMoreOlder,nextBeforeId:cacheNextBeforeId});}
 // === 缓存层结束 ===
 function _buildChildMap(all){const m=new Map();all.forEach(msg=>{const p=msg.parent_id||null;if(!m.has(p))m.set(p,[]);m.get(p).push(msg);});return m;}
 function _rebuildActivePath(all){if(!all||!all.length)return[];const cm=_buildChildMap(all);const r=[];let pid=null;while(true){const ch=cm.get(pid)||[];if(!ch.length)break;let ac=ch.find(c=>c.is_active)||ch[0];ac.sibling_count=ch.length;if(ch.length>1)ac.siblings=ch.map(c=>({id:c.id,branch_index:c.branch_index}));r.push(ac);pid=ac.id;}return r;}
-function _storeTree(d){if(d?.all_messages){S.allMsgs=d.all_messages;S.msgs=_rebuildActivePath(S.allMsgs);}else{S.msgs=d?.messages||[];S.allMsgs=[];}}
+function _storeTree(d){
+  if(d?.has_more!==undefined||d?.tree_meta!==undefined){
+    /* 新协议（含 around）*/
+    S.msgs=d?.messages||[];S.treeMeta=d?.tree_meta||[];
+    S.hasMoreOlder=!!d?.has_more;S.nextBeforeId=d?.next_before_id||null;
+    S.hasMoreAfter=!!d?.has_more_after;S.isPartialView=!!d?.is_partial_view;
+    S.allMsgs=[];
+  }else if(d?.all_messages){
+    /* 旧协议兼容（仅旁路触发）*/
+    S.allMsgs=d.all_messages;S.msgs=_rebuildActivePath(S.allMsgs);
+    S.treeMeta=[];S.hasMoreOlder=false;S.nextBeforeId=null;S.hasMoreAfter=false;S.isPartialView=false;
+  }else{
+    S.msgs=d?.messages||[];S.allMsgs=[];
+    S.treeMeta=[];S.hasMoreOlder=false;S.nextBeforeId=null;S.hasMoreAfter=false;S.isPartialView=false;
+  }
+}
+function _mergeOlderPage(older,hasMore,nextBeforeId){
+  if(older&&older.length){
+    const known=new Set(S.msgs.map(m=>m.id));
+    const prepend=older.filter(m=>m.id&&!known.has(m.id));
+    S.msgs=prepend.concat(S.msgs);
+  }
+  S.hasMoreOlder=!!hasMore;S.nextBeforeId=nextBeforeId;
+}
+function _mergeNewerPage(latest){
+  if(!latest||!latest.length)return;
+  /* 1. 清掉 optimistic temp（id==null 的本地占位）*/
+  S.msgs=S.msgs.filter(m=>m.id!=null);
+  /* 2. upsert by id：已存在的就地更新，新出现的追加 */
+  const idx=new Map();S.msgs.forEach((m,i)=>idx.set(m.id,i));
+  for(const m of latest){
+    if(idx.has(m.id)){const i=idx.get(m.id);S.msgs[i]=Object.assign({},S.msgs[i],m);}
+    else{S.msgs.push(m);idx.set(m.id,S.msgs.length-1);}
+  }
+  /* 3. 不动 hasMoreOlder/nextBeforeId */
+}
+function _mergeTreeMeta(meta){
+  if(!meta||!meta.length)return;
+  const map=new Map();(S.treeMeta||[]).forEach(t=>{if(t&&t.id)map.set(t.id,t);});
+  for(const t of meta){if(t&&t.id)map.set(t.id,t);}
+  S.treeMeta=Array.from(map.values());
+}
+async function _resetToLatest(){
+  if(!S.cid)return;
+  const d=await api('get_messages',{conversation_id:S.cid,limit:50});
+  _storeTree(d);_cacheConv();
+}
+/* 日期分隔工具 */
+function _dayKey(ts){if(!ts)return null;const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _dateLabel(ts){const t=new Date(ts),now=new Date();const same=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();const yest=new Date(now);yest.setDate(yest.getDate()-1);if(same(t,now))return '今天';if(same(t,yest))return '昨天';const days=Math.floor((now-t)/864e5);const wd=['周日','周一','周二','周三','周四','周五','周六'][t.getDay()];if(days<7)return wd;if(t.getFullYear()===now.getFullYear())return (t.getMonth()+1)+'月'+t.getDate()+'日';return t.getFullYear()+'年'+(t.getMonth()+1)+'月'+t.getDate()+'日';}
 document.addEventListener('DOMContentLoaded',()=>{_initTheme();const inp=document.getElementById('msg-input');inp.value='';if(!S.apiUrl){openSet();goSP('conn');}else{Promise.all([loadConvs(),loadMdls()]);}aR(inp);updSub();/* #20 Service Worker registration */if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}});
 function _initTheme(){const t=localStorage.getItem('memoria_theme')||'light';document.documentElement.setAttribute('data-theme',t);if(t==='dark')document.querySelector('meta[name="theme-color"]').content='#1A1A1A';const sw=document.getElementById('theme-sw');if(sw&&t==='dark')sw.classList.add('on');const rs=document.getElementById('recall-debug-sw');if(rs)rs.classList.toggle('on',S.recallDebug);}
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme');const next=cur==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',next);localStorage.setItem('memoria_theme',next);document.querySelector('meta[name="theme-color"]').content=next==='dark'?'#1A1A1A':'#F5F5F0';const sw=document.getElementById('theme-sw');if(sw)sw.classList.toggle('on',next==='dark');document.querySelectorAll('.html-preview-frame').forEach(f=>{if(f.srcdoc){f.srcdoc='';f.style.height='200px';const wrap=f.closest('.html-preview-wrap');if(wrap)delete wrap.dataset.observed;}});_initHtmlPreviews();}

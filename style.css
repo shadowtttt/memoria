@@ -6,6 +6,7 @@
   --ubbl:#EAE8E1;
   --sidebar-bg:#EDECE7;--sidebar-hover:#E4E3DD;--sidebar-active:#DDDCD6;
   --input-bg:#FFFFFF;--input-border:rgba(0,0,0,0.08);
+  --bg-soft:rgba(0,0,0,0.05);
   --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
   --radius-s:8px;--radius-m:12px;--radius-l:20px;--radius-xl:24px;
   --ease:cubic-bezier(.32,.72,0,1);--ease-out:cubic-bezier(0,.55,.45,1);
@@ -18,6 +19,7 @@
   --ubbl:#2D2D2D;
   --sidebar-bg:#1E1E1E;--sidebar-hover:#2A2A2A;--sidebar-active:#333;
   --input-bg:#2A2A2A;--input-border:rgba(255,255,255,0.1);
+  --bg-soft:rgba(255,255,255,0.06);
 }
 [data-theme="dark"] .mc pre{background:#0D1117}
 [data-theme="dark"] .mc pre code{color:#E6EDF3}
@@ -623,3 +625,11 @@ input[type="range"]::-webkit-slider-thumb:hover{box-shadow:0 1px 6px rgba(174,86
 .usg-tbl-r{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--sep);gap:8px}
 .usg-tbl-r:last-child{border-bottom:none}
 .usg-r{flex:1;text-align:right;font-variant-numeric:tabular-nums}
+
+/* === Infinite scroll: date divider / loader / partial banner === */
+.date-divider{text-align:center;margin:14px 0 6px;font-size:11px;color:var(--t4);user-select:none}
+.date-divider span{background:var(--bg-soft);padding:3px 10px;border-radius:10px}
+.msgs-loader{text-align:center;padding:8px;font-size:12px;color:var(--t4);user-select:none}
+.partial-banner{position:sticky;bottom:8px;display:flex;justify-content:center;pointer-events:none;z-index:10}
+.partial-banner button{pointer-events:auto;background:var(--accent);color:#fff;border:0;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:background .15s}
+.partial-banner button:hover{background:var(--accent-hover)}

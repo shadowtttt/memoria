@@ -16,24 +16,88 @@ image:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/
 code:'<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>'
 };
 const _EMPTY_HTML='<div id="empty"><div class="elogo"><svg viewBox="0 0 16 16" fill="#DA7756"><path d="m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z"/></svg></div><div class="etitle">How can I help<br>you today?</div></div>';
-function rMsgs(){const container=document.getElementById('msgs');if(!S.msgs.length){container.innerHTML=_EMPTY_HTML;return;}
-/* Remove empty placeholder */
-const emp=container.querySelector('#empty');if(emp)emp.remove();
-const existing=Array.from(container.querySelectorAll(':scope > .msg'));
-/* Fast path: if IDs match, only patch changed messages */
-if(existing.length===S.msgs.length){let allMatch=true;for(let i=0;i<existing.length;i++){if((existing[i].dataset.id||'')!==(S.msgs[i].id||'')){allMatch=false;break;}}
-if(allMatch){let changed=false;for(let i=0;i<S.msgs.length;i++){const m=S.msgs[i],el=existing[i];if(el.dataset.rk===_msgRenderKey(m))continue;changed=true;const tmp=document.createElement('div');tmp.innerHTML=rMsg(m,i);el.replaceWith(tmp.firstChild);}scr(true);_hlCode();_initHtmlPreviews();return;}}
-/* Incremental path: find longest matching prefix, rebuild from divergence */
-let matchLen=0;const minLen=Math.min(existing.length,S.msgs.length);
-for(let i=0;i<minLen;i++){const el=existing[i],m=S.msgs[i];if((el.dataset.id||'')!==(m.id||''))break;if(el.dataset.rk!==_msgRenderKey(m))break;matchLen=i+1;}
-/* Remove trailing extra nodes */
-for(let i=existing.length-1;i>=S.msgs.length;i--)existing[i].remove();
-/* Build new/changed nodes via fragment */
-const frag=document.createDocumentFragment();for(let i=matchLen;i<S.msgs.length;i++){const tmp=document.createElement('div');tmp.innerHTML=rMsg(S.msgs[i],i);frag.appendChild(tmp.firstChild);}
-/* Replace divergent existing + append new */
-if(matchLen<existing.length){for(let i=existing.length-1;i>=matchLen;i--)existing[i].remove();}
-container.appendChild(frag);
-scr(true);_hlCode();_initHtmlPreviews();}
+function rMsgs(opts){
+  opts=opts||{};
+  const container=document.getElementById('msgs');
+  if(!S.msgs.length){container.replaceChildren();container.appendChild(_emptyNode());return;}
+  const emp=container.querySelector('#empty');if(emp)emp.remove();
+  /* 构造 render items */
+  const items=[];
+  if(S.hasMoreOlder)items.push({type:'loader',key:'loader'});
+  let lastDate=null;
+  for(let i=0;i<S.msgs.length;i++){
+    const m=S.msgs[i];
+    const dk=_dayKey(m.created_at);
+    if(dk&&dk!==lastDate){items.push({type:'date',key:'d-'+dk,label:_dateLabel(m.created_at)});lastDate=dk;}
+    items.push({type:'msg',key:'m-'+(m.id||'tmp-'+i),msg:m,idx:i});
+  }
+  if(S.isPartialView)items.push({type:'partial-banner',key:'partial'});
+  _keyDiffChildren(container,items);
+  if(!opts.preserveScroll)scr(true);
+  _hlCode();_initHtmlPreviews();
+}
+function _emptyNode(){const tpl=document.createElement('template');tpl.innerHTML=_EMPTY_HTML;return tpl.content.firstElementChild;}
+function _renderItem(it){
+  if(it.type==='loader'){
+    const d=document.createElement('div');d.className='msgs-loader';d.dataset.key=it.key;d.dataset.state=S.loadingOlder?'loading':'idle';
+    d.textContent=S.loadingOlder?'加载中…':'上滑加载更早…';return d;
+  }
+  if(it.type==='date'){
+    const d=document.createElement('div');d.className='date-divider';d.dataset.key=it.key;d.dataset.label=it.label;
+    const sp=document.createElement('span');sp.textContent=it.label;d.appendChild(sp);return d;
+  }
+  if(it.type==='partial-banner'){
+    const d=document.createElement('div');d.className='partial-banner';d.dataset.key=it.key;
+    const btn=document.createElement('button');btn.textContent='↓ 回到最新';btn.onclick=backToLatest;d.appendChild(btn);return d;
+  }
+  /* msg：rMsg 返回 HTML 字符串，沿用现有模式 */
+  const tpl=document.createElement('template');tpl.innerHTML=rMsg(it.msg,it.idx);
+  const node=tpl.content.firstElementChild;node.dataset.key=it.key;node.dataset.rk=_msgRenderKey(it.msg,it.idx);
+  return node;
+}
+function _keyDiffChildren(container,items){
+  /* 先清掉所有 unkeyed 旧节点（skeleton / 流式 sd / regenUser 临时 user 等），避免重复消息残留 */
+  for(const el of Array.from(container.children))if(!el.dataset.key)el.remove();
+  const oldByKey=new Map();
+  for(const el of Array.from(container.children))if(el.dataset.key)oldByKey.set(el.dataset.key,el);
+  const newKeys=new Set(items.map(it=>it.key));
+  /* 删除不再存在的 keyed 节点 */
+  for(const [k,el] of oldByKey)if(!newKeys.has(k))el.remove();
+  /* 按 items 顺序 upsert */
+  let prev=null;
+  for(const it of items){
+    let node=oldByKey.get(it.key);let needsUpdate=false;
+    if(node){
+      if(it.type==='msg'&&node.dataset.rk!==_msgRenderKey(it.msg,it.idx))needsUpdate=true;
+      if(it.type==='loader'&&node.dataset.state!==(S.loadingOlder?'loading':'idle'))needsUpdate=true;
+      if(it.type==='date'&&node.dataset.label!==it.label)needsUpdate=true;
+      if(needsUpdate){const fresh=_renderItem(it);node.replaceWith(fresh);node=fresh;oldByKey.set(it.key,fresh);}
+    }else{node=_renderItem(it);}
+    const after=prev?prev.nextSibling:container.firstChild;
+    if(after!==node)container.insertBefore(node,after);
+    prev=node;
+  }
+}
+async function loadOlder(){
+  if(S.loadingOlder||!S.hasMoreOlder||!S.cid)return;
+  S.loadingOlder=true;rMsgs({preserveScroll:true});
+  const wrap=document.getElementById('msgs-wrap');const oldH=wrap.scrollHeight,oldT=wrap.scrollTop;
+  try{
+    const d=await api('get_messages',{conversation_id:S.cid,before_id:S.nextBeforeId,limit:50});
+    _mergeOlderPage(d.messages,d.has_more,d.next_before_id);
+    if(d.tree_meta&&d.tree_meta.length)_mergeTreeMeta(d.tree_meta);
+    rMsgs({preserveScroll:true});
+    requestAnimationFrame(()=>{wrap.scrollTop=oldT+(wrap.scrollHeight-oldH);});
+    /* cache 只存 latest 50，loadOlder 不更新 cache */
+  }catch(e){toast('加载历史失败');}
+  finally{S.loadingOlder=false;rMsgs({preserveScroll:true});}
+}
+async function backToLatest(){
+  if(!S.cid)return;
+  await _resetToLatest();
+  rMsgs();
+}
+document.addEventListener('DOMContentLoaded',()=>{const mw=document.getElementById('msgs-wrap');if(!mw)return;mw.addEventListener('scroll',()=>{if(S.streaming)return;if(mw.scrollTop<200&&S.hasMoreOlder&&!S.loadingOlder)loadOlder();},{passive:true});});
 function getModelColor(mid){if(!mid)return{bg:'#8C8478',ab:'AI'};const m=mid.toLowerCase();if(m.includes('deepseek'))return{bg:'#4D6BFE',ab:'DS'};if(m.includes('claude'))return{bg:'#AE5630',ab:'Cl'};if(m.includes('gemini'))return{bg:'#4285F4',ab:'G'};if(m.includes('gpt')||m.includes('o4-'))return{bg:'#10A37F',ab:'AI'};if(m.includes('qwen'))return{bg:'#FF6A00',ab:'Qw'};if(m.includes('glm'))return{bg:'#2563EB',ab:'智'};return{bg:'#8C8478',ab:'AI'};}
 function fmtMsgTime(ts){if(!ts)return'';const d=new Date(ts);const pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
 function _avatarHtml(mc){const ca=getCustomAvatar();if(ca.img)return '<div class="mm-icon"><img src="'+ca.img+'"></div>';return '<div class="mm-icon" style="background:'+mc.bg+'">'+mc.ab+'</div>';}
@@ -44,14 +108,14 @@ function _usageChip(cls,title,icon,value){return '<span class="'+cls+'" title="'
 function _fmtUsage(ud,tc){if(ud){const input=_usageNum(ud,['normal_input','normal_input_tokens','input','input_tokens','prompt_tokens']);const output=_usageNum(ud,['output','output_tokens','completion_tokens']);const cacheRead=_usageNum(ud,['cache_read','cache_read_input_tokens','input_cache_read','input_cache_read_tokens','cached_tokens','cache_hit','cache_hit_tokens']);const cacheWrite=_usageNum(ud,['cache_write','cache_creation_input_tokens','input_cache_write','input_cache_write_tokens','cache_write_tokens']);const hasAny=input!==null||output!==null||cacheRead!==null||cacheWrite!==null;if(hasAny){let h='<span class="usage-detail">';h+=_usageChip('ud-in','普通输入',USAGE_ICONS.input,input??'-');h+=_usageChip('ud-out','输出',USAGE_ICONS.output,output??'-');h+=_usageChip('ud-hit','命中缓存',USAGE_ICONS.hit,cacheRead??0);h+=_usageChip('ud-write','写入缓存',USAGE_ICONS.write,cacheWrite??0);h+='</span>';return h;}}if(tc)return '<span>'+tc+' tokens</span>';return '';}
 function rMsgUsage(m){const h=_fmtUsage(m.usage_detail,m.token_count);return h?'<div class="msg-usage">'+h+'</div>':'';}
 function rMsgMeta(m){if(!m.model&&!m.created_at)return'';const mc=getModelColor(m.model);const t=fmtMsgTime(m.created_at);const infoHtml=t?'<div class="mm-info"><span>'+t+'</span></div>':'';return '<div class="msg-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(m.model))+'</div>'+infoHtml+'</div></div>';}
-function _msgRenderKey(m){const s=[m.role||'',m.content||'',JSON.stringify(m.attachments||null),m.model||'',m.token_count||'',JSON.stringify(m.usage_detail||null),m.created_at||'',m.thinking_content||'',m._thinkDuration||'',m._firstThink||'',m._resumeThink||'',m.sibling_count||'',m.branch_index||'',S.recallDebug?'1':'0',JSON.stringify(m._memoryRecallDebug||null)].join('\u001f');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return String(h);}
+function _msgRenderKey(m,idx){const s=[m.role||'',m.content||'',JSON.stringify(m.attachments||null),m.model||'',m.token_count||'',JSON.stringify(m.usage_detail||null),m.created_at||'',m.thinking_content||'',m._thinkDuration||'',m._firstThink||'',m._resumeThink||'',m.sibling_count||'',m.branch_index||'',String(idx==null?'':idx),S.recallDebug?'1':'0',JSON.stringify(m._memoryRecallDebug||null)].join('\u001f');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return String(h);}
 function _rMDCached(m){if(!m.content)return '';if(m._htmlCache&&m._htmlCacheKey===m.content)return m._htmlCache;const h=rMD(m.content);m._htmlCache=h;m._htmlCacheKey=m.content;return h;}
 function _fmtScore(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(3):'-';}
 function _recallScoreChips(d){d=d||{};const items=[['S',d.score],['R',d.relevance],['I',d.importance],['T',d.time],['M',d.entity],['H',d.hit],['C',d.cooldown],['Q',d.quality]];return items.map(x=>'<span><b>'+x[0]+'</b>'+_fmtScore(x[1])+'</span>').join('');}
 function rMemoryRecallDebug(m,idx){if(!S.recallDebug||!m._memoryRecallDebug)return'';const d=m._memoryRecallDebug,c=d.candidates||[],sel=c.filter(x=>x.selected),id='mrd-'+idx+'-'+(m.id||'local');const rows=c.map(x=>{const sd=x.score_detail||{},tags=(x.tags||[]).slice(0,5).map(t=>'<span>'+E(String(t))+'</span>').join(''),matched=(sd.matched_entities||[]).slice(0,4).map(t=>'<span>'+E(String(t))+'</span>').join('');return '<div class="mrd-row '+(x.selected?'selected':'candidate')+'"><div class="mrd-row-top"><span class="mrd-rank">#'+x.rank+'</span><span class="mrd-pill">'+(x.selected?'选中':'候选')+'</span><span class="mrd-score">'+_fmtScore(x.score)+'</span></div><div class="mrd-scores">'+_recallScoreChips(sd)+'</div>'+(tags?'<div class="mrd-tags">'+tags+'</div>':'')+(matched?'<div class="mrd-match">命中 '+matched+'</div>':'')+'<div class="mrd-content">'+E(x.content||'')+'</div></div>';}).join('');return '<div class="memory-debug"><button class="memory-debug-head" onclick="tgMemoryDebug(\''+id+'\',this)"><span>召回 '+sel.length+' / 候选 '+c.length+'</span><span class="mrd-head-score">'+(sel[0]?_fmtScore(sel[0].score):'-')+'</span></button><div class="memory-debug-body" id="'+id+'"><div class="mrd-meta">round '+(d.user_round||'-')+' · limit '+(d.primary_limit||'-')+'</div><button class="mrd-more" onclick="tgMemoryCandidates(this)">显示候选</button>'+rows+'</div></div>';}
 function tgMemoryDebug(id,btn){const body=document.getElementById(id);if(!body)return;const open=body.classList.toggle('open');if(btn)btn.classList.toggle('open',open);}
 function tgMemoryCandidates(btn){const box=btn.closest('.memory-debug');if(!box)return;const open=box.classList.toggle('show-all');btn.textContent=open?'只看选中':'显示候选';}
-function _attachMemoryRecallDebug(p,sd){if(!S.recallDebug)return;let idx=-1;for(let i=S.msgs.length-1;i>=0;i--){if(S.msgs[i].role==='user'&&(S.msgs[i].id===p.message_id||!S.msgs[i].id)){idx=i;break;}}if(idx<0)return;const m=S.msgs[idx];if(p.message_id&&!m.id)m.id=p.message_id;m._memoryRecallDebug=p;_cacheConv();let el=null;if(p.message_id)el=document.querySelector('.msg.user[data-id="'+p.message_id+'"]');if(!el&&sd)el=sd.previousElementSibling&&sd.previousElementSibling.classList.contains('user')?sd.previousElementSibling:null;if(el){el.dataset.id=m.id||'';el.dataset.rk=_msgRenderKey(m);const old=el.querySelector('.memory-debug');if(old)old.remove();const html=rMemoryRecallDebug(m,idx);const acts=el.querySelector(':scope > .msg-acts');if(html&&acts)acts.insertAdjacentHTML('beforebegin',html);}}
+function _attachMemoryRecallDebug(p,sd){if(!S.recallDebug)return;let idx=-1;for(let i=S.msgs.length-1;i>=0;i--){if(S.msgs[i].role==='user'&&(S.msgs[i].id===p.message_id||!S.msgs[i].id)){idx=i;break;}}if(idx<0)return;const m=S.msgs[idx];if(p.message_id&&!m.id)m.id=p.message_id;m._memoryRecallDebug=p;_cacheConv();let el=null;if(p.message_id)el=document.querySelector('.msg.user[data-id="'+p.message_id+'"]');if(!el&&sd)el=sd.previousElementSibling&&sd.previousElementSibling.classList.contains('user')?sd.previousElementSibling:null;if(el){el.dataset.id=m.id||'';el.dataset.rk=_msgRenderKey(m,idx);const old=el.querySelector('.memory-debug');if(old)old.remove();const html=rMemoryRecallDebug(m,idx);const acts=el.querySelector(':scope > .msg-acts');if(html&&acts)acts.insertAdjacentHTML('beforebegin',html);}}
 function rMsg(m,idx){const u=m.role==='user',h=u?E(m.content).replace(/\n/g,'<br>'):_rMDCached(m);const cpI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',reI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',dotI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>';
 let branchHtml='';
 if(m.sibling_count&&m.sibling_count>1&&m.id){
@@ -61,7 +125,7 @@ if(m.sibling_count&&m.sibling_count>1&&m.id){
 const a='<button class="mab" onclick="cpM('+idx+')" title="复制">'+cpI+'</button><button class="mab" onclick="regenFrom('+idx+')" title="刷新">'+reI+'</button><button class="mab" onclick="showMAS('+idx+')" title="更多">'+dotI+'</button>'+branchHtml;
 let imgs='';if(u&&m.attachments&&m.attachments.length>0){const imgAtts=m.attachments.filter(a=>a.type==='image'&&a.url);if(imgAtts.length)imgs='<div class="msg-imgs">'+imgAtts.map(a=>'<img src="'+a.url+'" onclick="viewImg(this.src)" loading="lazy">').join('')+'</div>';const docAtts=m.attachments.filter(a=>a.type==='document');if(docAtts.length)imgs+='<div class="msg-docs">'+docAtts.map(a=>'<div class="doc-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>'+E(a.name)+'</span></div>').join('')+'</div>';}
 let metaHtml='';if(!u)metaHtml=rMsgMeta(m);
-const rk=_msgRenderKey(m);
+const rk=_msgRenderKey(m,idx);
 const _thinkBtn='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
 let thinkHtml='';
 let mcHtml='';
@@ -182,12 +246,27 @@ async function _streamChat(act,params,sd,opts){
   }
   _strFinalize(sd,fthink,_clock);S.streaming=false;S.ac=null;updBtn();
   if(S._aborted&&ft){if(sd&&sd.parentNode)sd.remove();S.msgs.push({role:'assistant',content:ft,thinking_content:fthink||null,_partial:true});S._aborted=false;rMsgs();}
-  else if(S.cid){try{const _localMsgs=S.msgs.slice();const _d=await api('get_messages',{conversation_id:S.cid});_storeTree(_d);_mergeLocalMeta(_localMsgs);if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}_cacheConv();_syncStreamDom(sd);rMsgs();}catch(x){}}
+  else if(S.cid){try{
+    const _localMsgs=S.msgs.slice();
+    const mode=opts.mergeMode||'merge';
+    if(mode==='reset-to-latest'){
+      await _resetToLatest();   /* regen / regenUser：活跃路径会变，必须重置而不是 append */
+    }else{
+      const _d=await api('get_messages',{conversation_id:S.cid,limit:50});
+      _mergeNewerPage(_d.messages);
+      if(_d.tree_meta&&_d.tree_meta.length)_mergeTreeMeta(_d.tree_meta);
+    }
+    _mergeLocalMeta(_localMsgs);
+    if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}
+    _cacheConv();_syncStreamDom(sd);rMsgs();
+  }catch(x){}}
   if(opts.onDone)opts.onDone();
 }
 
 // Send
 async function send(){const inp=document.getElementById('msg-input'),txt=inp.value.trim();if((!txt&&!S.attachments.length)||S.streaming)return;const imgAtts=S.attachments.filter(a=>a.type==='image');const docAtts=S.attachments.filter(a=>a.type==='document');const imageUrls=[];if(imgAtts.length){const _sendBtn=document.getElementById('send-btn');if(_sendBtn)_sendBtn.style.opacity='0.5';for(const a of imgAtts){try{const compressed=await compressImage(a.file);imageUrls.push(compressed);}catch(e){toast('图片处理失败');if(_sendBtn)_sendBtn.style.opacity='';return;}}if(_sendBtn)_sendBtn.style.opacity='';}inp.value='';aR(inp);const localAtts=[...imageUrls.map(u=>({type:'image',url:u})),...docAtts.map(d=>({type:'document',name:d.name}))];const documents=docAtts.map(d=>({name:d.name,content:d.text}));S.attachments=[];rAttach();updSendBtn();const msgTxt=txt||'';const _wasNew=!S.cid;
+/* partial view 守卫：发送前必须先回到最新一页，否则 parentId 会取到局部窗口尾巴 */
+if(S.isPartialView){await _resetToLatest();rMsgs();}
 const lastMsg=S.msgs.length>0?S.msgs[S.msgs.length-1]:null;const parentId=lastMsg?.id||null;
 S.msgs.push({role:'user',content:msgTxt,attachments:localAtts.length?localAtts:null,id:null});rMsgs();S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;const sd=appStr();const chatParams={conversation_id:S.cid,message:msgTxt,model:gMdl()};if(S.recallDebug)chatParams.debug_memory_recall=true;if(parentId)chatParams.parent_id=parentId;if(imageUrls.length>0)chatParams.images=imageUrls;if(documents.length>0)chatParams.documents=documents;await _streamChat('chat',chatParams,sd,{handleMeta:true,errMsg:'发送失败',onNoRes:function(){toast('请先配置连接');},onDone:function(){if(S.msgs.length<=3)autoName();if(_wasNew){loadConvs();}else{const ci=S.allC.findIndex(c=>c.id===S.cid);if(ci>0){const[cv]=S.allC.splice(ci,1);cv.updated_at=new Date().toISOString();S.allC.unshift(cv);filterConvs();}}}});}
 function appStr(){const i=document.getElementById('msgs'),em=document.getElementById('empty');if(em)em.remove();const d=document.createElement('div');d.className='msg assistant';const mdl=gMdl();const mc=getModelColor(mdl);const metaH='<div class="msg-meta" id="str-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(mdl))+'</div></div></div>';_strInit();d.innerHTML=CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaH+'<div id="str-flow"></div></div>';i.appendChild(d);scr(true);return d;}
@@ -266,17 +345,41 @@ function cpM(i){const m=S.msgs[i];if(m)navigator.clipboard.writeText(m.content).
 function cpC(id,b){const t=document.getElementById(id);if(t)navigator.clipboard.writeText(t.value).then(()=>{b.textContent='已复制';setTimeout(()=>b.textContent='复制',1500);});}
 
 // Branch
-async function switchBranch(msgId,direction){if(S.streaming||!S.cid)return;const m=S.msgs.find(x=>x.id===msgId);if(!m)return;const pid=m.parent_id||null;const sibs=S.allMsgs.filter(x=>(x.parent_id||null)===pid).sort((a,b)=>(a.branch_index||0)-(b.branch_index||0));if(sibs.length<2)return;const curIdx=sibs.findIndex(s=>s.id===msgId);const tIdx=curIdx+direction;if(tIdx<0||tIdx>=sibs.length)return;const targetId=sibs[tIdx].id;sibs.forEach(s=>s.is_active=s.id===targetId);function activateChain(id){const ch=S.allMsgs.filter(x=>x.parent_id===id);if(!ch.length)return;let ac=ch.find(c=>c.is_active)||ch[0];ch.forEach(c=>c.is_active=c.id===ac.id);activateChain(ac.id);}activateChain(targetId);S.msgs=_rebuildActivePath(S.allMsgs);rMsgs();_cacheConv();api('switch_branch',{message_id:targetId}).catch(()=>{});}
+async function switchBranch(msgId,direction){
+  if(S.streaming||!S.cid)return;
+  const m=S.msgs.find(x=>x.id===msgId);if(!m)return;
+  const pid=m.parent_id||null;
+  /* 优先用 treeMeta；缺则懒查 get_siblings */
+  let sibs=(S.treeMeta||[]).filter(t=>(t.parent_id||null)===pid).sort((a,b)=>(a.branch_index||0)-(b.branch_index||0));
+  if(sibs.length<2){
+    try{const r=await api('get_siblings',{message_id:msgId});sibs=(r?.siblings||[]).sort((a,b)=>(a.branch_index||0)-(b.branch_index||0));}catch(e){return;}
+  }
+  if(sibs.length<2)return;
+  const curIdx=sibs.findIndex(s=>s.id===msgId);const tIdx=curIdx+direction;
+  if(tIdx<0||tIdx>=sibs.length)return;
+  const targetId=sibs[tIdx].id;
+  try{
+    await api('switch_branch',{message_id:targetId});
+    /* 用 around 保持视图在 target 附近，不跳到对话底 */
+    const d=await api('get_messages_around',{message_id:targetId,window:25});
+    _storeTree(d);rMsgs();
+    setTimeout(()=>{const el=document.querySelector('.msg[data-id="'+targetId+'"]');if(el)el.scrollIntoView({block:'center'});},50);
+    _cacheConv();
+  }catch(e){toast('切换失败');}
+}
 
 function regenFrom(idx){if(S.streaming||!S.cid)return;const m=S.msgs[idx];if(!m)return;if(m.role==='assistant'){regen(m.id,idx);}else{regenUser(m,idx);}}
 function showMAS(idx){const m=S.msgs[idx];if(!m)return;const u=m.role==='user';const el=document.getElementById('mas-items');let items='';if(u){items+='<div class="mas-item" onclick="closeMAS();edM('+idx+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>编辑</div>';}items+='<div class="mas-item danger" onclick="closeMAS();dlM('+idx+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</div>';el.innerHTML=items;document.getElementById('msg-act-sheet').classList.add('on');}
 function closeMAS(){document.getElementById('msg-act-sheet').classList.remove('on');}
-async function dlM(i){const m=S.msgs[i];if(!m?.id)return;confirm_('删除消息','确定删除？',async()=>{try{await api('delete_message',{message_id:m.id,conversation_id:S.cid});S.msgs.splice(i,1);rMsgs();toast('已删除');}catch(e){toast('失败');}});}
+async function dlM(i){const m=S.msgs[i];if(!m?.id)return;confirm_('删除消息','确定删除？',async()=>{try{await api('delete_message',{message_id:m.id,conversation_id:S.cid});S.msgs.splice(i,1);
+/* 删的是首条边界消息时重算 nextBeforeId，避免后续 loadOlder cursor 指向已删 id */
+if(i===0&&S.hasMoreOlder){S.nextBeforeId=S.msgs[0]?.id||null;}
+rMsgs();_cacheConv();toast('已删除');}catch(e){toast('失败');}});}
 function edM(i){const m=S.msgs[i];if(!m||m.role!=='user')return;const el=document.querySelector('.msg[data-idx="'+i+'"]');if(!el)return;const ce=el.querySelector('.mc'),ae=el.querySelector('.msg-acts');ce.innerHTML='<textarea class="ed-ta">'+E(m.content)+'</textarea>';ae.innerHTML='<div class="ed-btns"><button class="btn btn-g btn-s" onclick="rMsgs()">取消</button><button class="btn btn-p btn-s" onclick="svEd('+i+')">保存</button></div>';ce.querySelector('textarea').focus();}
-async function svEd(i){const m=S.msgs[i],ta=document.querySelector('.msg[data-idx="'+i+'"] .ed-ta');if(!ta||!m.id)return;const nc=ta.value.trim();if(!nc)return;try{await api('edit_message',{message_id:m.id,content:nc});m.content=nc;rMsgs();toast('已保存');}catch(e){toast('失败');}}
+async function svEd(i){const m=S.msgs[i],ta=document.querySelector('.msg[data-idx="'+i+'"] .ed-ta');if(!ta||!m.id)return;const nc=ta.value.trim();if(!nc)return;try{await api('edit_message',{message_id:m.id,content:nc});m.content=nc;rMsgs();_cacheConv();toast('已保存');}catch(e){toast('失败');}}
 function hideMsgsFrom(idx){const msgEls=document.querySelectorAll('#msgs .msg');const hidden=[];msgEls.forEach(el=>{const i=parseInt(el.getAttribute('data-idx'));if(i>=idx){el.style.display='none';hidden.push(el);}});return hidden;}
-async function regen(messageId,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;if(idx!==undefined)hideMsgsFrom(idx);const sd=appStr();const params={conversation_id:S.cid,model:gMdl()};if(messageId)params.message_id=messageId;await _streamChat('regenerate',params,sd,{onNoRes:function(){rMsgs();}});}
-async function regenUser(m,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;hideMsgsFrom(idx);const msgsEl=document.getElementById('msgs');const tmpUser=document.createElement('div');tmpUser.className='msg user';let tmpContent=E(m.content).replace(/\n/g,'<br>');let tmpImgs='';if(m.attachments&&m.attachments.length>0){const imgAtts=m.attachments.filter(a=>a.type==='image'&&a.url);if(imgAtts.length)tmpImgs='<div class="msg-imgs">'+imgAtts.map(a=>'<img src="'+a.url+'" loading="lazy">').join('')+'</div>';const docAtts=m.attachments.filter(a=>a.type==='document');if(docAtts.length)tmpImgs+='<div class="msg-docs">'+docAtts.map(a=>'<div class="doc-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>'+E(a.name)+'</span></div>').join('')+'</div>';}tmpUser.innerHTML=tmpImgs+(tmpContent?'<div class="mc">'+tmpContent+'</div>':'');msgsEl.appendChild(tmpUser);const sd=appStr();const chatParams={conversation_id:S.cid,message:m.content,model:gMdl(),is_regen:true};if(S.recallDebug)chatParams.debug_memory_recall=true;const prevMsg=idx>0?S.msgs[idx-1]:null;if(prevMsg?.id)chatParams.parent_id=prevMsg.id;if(m.attachments){const imgUrls=m.attachments.filter(a=>a.type==='image'&&a.url).map(a=>a.url);if(imgUrls.length>0)chatParams.images=imgUrls;const docs=m.attachments.filter(a=>a.type==='document');if(docs.length>0)chatParams.documents=docs.map(d=>({name:d.name,content:d.text||''}));}await _streamChat('chat',chatParams,sd,{handleMeta:true,onNoRes:function(){rMsgs();}});}
+async function regen(messageId,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;if(idx!==undefined)hideMsgsFrom(idx);const sd=appStr();const params={conversation_id:S.cid,model:gMdl()};if(messageId)params.message_id=messageId;await _streamChat('regenerate',params,sd,{mergeMode:'reset-to-latest',onNoRes:function(){rMsgs();}});}
+async function regenUser(m,idx){if(S.streaming||!S.cid)return;S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;hideMsgsFrom(idx);const msgsEl=document.getElementById('msgs');const tmpUser=document.createElement('div');tmpUser.className='msg user';let tmpContent=E(m.content).replace(/\n/g,'<br>');let tmpImgs='';if(m.attachments&&m.attachments.length>0){const imgAtts=m.attachments.filter(a=>a.type==='image'&&a.url);if(imgAtts.length)tmpImgs='<div class="msg-imgs">'+imgAtts.map(a=>'<img src="'+a.url+'" loading="lazy">').join('')+'</div>';const docAtts=m.attachments.filter(a=>a.type==='document');if(docAtts.length)tmpImgs+='<div class="msg-docs">'+docAtts.map(a=>'<div class="doc-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>'+E(a.name)+'</span></div>').join('')+'</div>';}tmpUser.innerHTML=tmpImgs+(tmpContent?'<div class="mc">'+tmpContent+'</div>':'');msgsEl.appendChild(tmpUser);const sd=appStr();const chatParams={conversation_id:S.cid,message:m.content,model:gMdl(),is_regen:true};if(S.recallDebug)chatParams.debug_memory_recall=true;const prevMsg=idx>0?S.msgs[idx-1]:null;if(prevMsg?.id)chatParams.parent_id=prevMsg.id;if(m.attachments){const imgUrls=m.attachments.filter(a=>a.type==='image'&&a.url).map(a=>a.url);if(imgUrls.length>0)chatParams.images=imgUrls;const docs=m.attachments.filter(a=>a.type==='document');if(docs.length>0)chatParams.documents=docs.map(d=>({name:d.name,content:d.text||''}));}await _streamChat('chat',chatParams,sd,{handleMeta:true,mergeMode:'reset-to-latest',onNoRes:function(){rMsgs();}});}
 async function autoName(){if(!S.cid)return;try{const d=await api('auto_name',{conversation_id:S.cid});if(d?.title){document.getElementById('h-t').textContent=d.title;loadConvs();}}catch(x){}}
 async function trigRem(){if(!S.cid)return;try{await api('remember',{conversation_id:S.cid});}catch(x){}}
 
