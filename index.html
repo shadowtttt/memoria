@@ -6,6 +6,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F5F5F0">
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem('memoria_theme');
+    var theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if(tc && theme==='dark') tc.content = '#1A1A1A';
+  }catch(e){}
+})();
+</script>
 <title>Memoria</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +25,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" defer></script>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVtb3JpYSIsInNob3J0X25hbWUiOiJNZW1vcmlhIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmMGViZTEiLCJ0aGVtZV9jb2xvciI6IiNmMGViZTEifQ==">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 <div id="app">
@@ -303,11 +314,11 @@
 <div id="toast"></div>
 </div>
 
-<script src="js/core.js?v=28"></script>
-<script src="js/sidebar.js?v=28"></script>
-<script src="js/chat.js?v=28"></script>
-<script src="js/settings.js?v=28"></script>
-<script src="js/memories.js?v=28"></script>
-<script src="js/usage.js?v=28"></script>
+<script src="js/core.js?v=29"></script>
+<script src="js/sidebar.js?v=29"></script>
+<script src="js/chat.js?v=29"></script>
+<script src="js/settings.js?v=29"></script>
+<script src="js/memories.js?v=29"></script>
+<script src="js/usage.js?v=29"></script>
 </body>
 </html>

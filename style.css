@@ -113,7 +113,7 @@ input,textarea,select,button{font-family:inherit}
 
 /* Messages */
 #msgs-wrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg);contain:strict;scroll-behavior:smooth}
-#msgs{max-width:700px;margin:0 auto;padding:16px 24px 32px}
+#msgs{max-width:700px;margin:0 auto;padding:16px 24px 32px;padding-bottom:calc(32px + var(--kb-offset, 0px))}
 .msg{margin-bottom:32px;contain:content}
 .msg.msg-new{animation:msgFadeIn .5s var(--ease)}
 @keyframes msgFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -345,7 +345,7 @@ input,textarea,select,button{font-family:inherit}
 @keyframes skelFade{from{opacity:0.5}to{opacity:1}}
 
 /* Input */
-#input-area{padding:0 16px 16px;padding-bottom:calc(16px + var(--safe-bottom));background:linear-gradient(transparent,var(--bg) 20%)}
+#input-area{padding:0 16px 16px;padding-bottom:calc(16px + var(--safe-bottom));background:linear-gradient(transparent,var(--bg) 20%);transform:translateY(calc(var(--kb-offset, 0px) * -1));transition:transform .15s}
 #input-card{max-width:700px;margin:0 auto;border:1px solid var(--input-border);border-radius:var(--radius-xl);overflow:hidden;background:var(--input-bg);transition:border-color .2s,box-shadow .2s;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
 #input-card:focus-within{border-color:rgba(174,86,48,.25);box-shadow:0 2px 20px rgba(0,0,0,0.06),0 0 0 1px rgba(174,86,48,.1)}
 #msg-input{width:100%;padding:16px 18px 8px;border:none;background:none;font-size:15px;line-height:1.5;resize:none;outline:none;max-height:160px;min-height:36px;color:var(--t1)}
@@ -659,3 +659,62 @@ input[type="range"]::-webkit-slider-thumb:hover{box-shadow:0 1px 6px rgba(174,86
 .cal-day-active{background:var(--accent);color:#fff;cursor:pointer;font-weight:500}
 .cal-day-active:hover{background:var(--accent-hover)}
 .cal-loading{padding:40px 0;text-align:center;color:var(--t4);font-size:13px;grid-column:1/-1}
+
+/* ===== Mobile / no-hover hover reset (avoid hover stuck on touch) ===== */
+@media (hover: none) and (pointer: coarse) {
+  /* A. Force .msg-acts always visible on touch (bypass hover-reveal) */
+  .msg-acts{opacity:1}
+
+  /* B. Skip active states when resetting hover */
+  .ci:not(.on):hover{background:transparent}
+  .mem-pill:not(.active):hover{background:var(--bg2);color:var(--t2);border-color:var(--border)}
+  .cal-day:not(.cal-day-active):hover{background:transparent}
+  /* cal-day-active:hover has higher specificity than .cal-day-active alone */
+  .cal-day-active:hover{background:var(--accent);color:#fff}
+
+  /* C. Round icon buttons — restore explicit defaults */
+  .h-btn:hover{background:transparent;color:var(--t3)}
+  .sb-btn:hover{background:transparent;color:var(--t3)}
+  .sb-new-btn:hover{background:transparent;color:var(--t2)}
+  .sb-hist-btn:hover{background:transparent;color:var(--t3)}
+  .tb-btn:hover{background:transparent;color:var(--t3)}
+  .mab:hover{background:transparent;color:var(--t4)}
+  .branch-nav button:hover{background:var(--bg2);color:var(--t3)}
+  .sp-bk:hover{background:transparent}
+
+  /* D. List rows / setting rows */
+  .sr:hover{background:transparent}
+  .sr:hover .sr-chev{transform:none}
+  .sr-item:hover{background:transparent}
+  .mas-item:hover{background:transparent}
+  .prov-item:hover{background:transparent}
+
+  /* E. Normal buttons — restore default backgrounds */
+  .btn-p:hover{background:var(--accent)}
+  .btn-g:hover{background:var(--bg2)}
+  .tb-tag:hover{background:var(--bg2);color:var(--t3)}
+  .core-edit-btn:hover{background:transparent;color:var(--t4)}
+  .nc-btn:hover{background:transparent;color:var(--t3)}
+
+  /* F. Cards / floating buttons */
+  .mem-card:hover{transform:none;box-shadow:none}
+  .mem-random-fab:hover{transform:none}
+  .memory-debug-head:hover{background:var(--bg2);border-color:var(--border)}
+
+  /* G. Restate primary active states (defensive against specificity surprises) */
+  .ci.on{background:var(--sidebar-active)}
+  .mem-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .cal-day-active{background:var(--accent);color:#fff}
+
+  /* H. Touch target sizes — bump small buttons to >=44px on touch devices */
+  .mab{min-width:44px;min-height:44px}
+  .sb-btn{min-width:44px;min-height:44px}
+  .sb-new-btn{min-width:44px;min-height:44px}
+  .sb-hist-btn{min-width:44px;min-height:44px}
+  .tb-btn{min-width:44px;min-height:44px}
+  .h-btn{min-width:44px;min-height:44px}
+  #send-btn{min-width:44px;min-height:44px}
+  #stop-btn{min-width:44px;min-height:44px}
+  .sp-bk{min-width:44px;min-height:44px;padding:10px}
+  .branch-nav button{min-width:32px;min-height:32px;border-radius:8px}
+}
