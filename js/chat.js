@@ -57,7 +57,7 @@ function _renderItem(it){
 }
 function _keyDiffChildren(container,items){
   /* 先清掉所有 unkeyed 旧节点（skeleton / 流式 sd / regenUser 临时 user 等），避免重复消息残留 */
-  for(const el of Array.from(container.children))if(!el.dataset.key)el.remove();
+  for(const el of Array.from(container.children))if(!el.dataset.key&&el.dataset.stream!=='active')el.remove();
   const oldByKey=new Map();
   for(const el of Array.from(container.children))if(el.dataset.key)oldByKey.set(el.dataset.key,el);
   const newKeys=new Set(items.map(it=>it.key));
@@ -327,7 +327,7 @@ async function _streamChat(act,params,sd,opts){
         }
         _mergeLocalMeta(_localMsgs);
         if(S._lastThinkMeta){_attachThinkMeta(S._lastThinkMeta.fthink,S._lastThinkMeta._resumeThink,S._lastThinkMeta.duration);}
-        _cacheConv();_invalidateConvDates(streamState.cid);_syncStreamDom(sd);rMsgs();
+        _cacheConv();_invalidateConvDates(streamState.cid);_syncStreamDom(sd);if(sd&&sd.parentNode)sd.remove();rMsgs();
       }else{
         /* inactive：用 _cacheConvById 刷新旧 cid 的 IDB，不动当前 S.msgs */
         try{
@@ -353,7 +353,7 @@ async function send(){const inp=document.getElementById('msg-input'),txt=inp.val
 if(S.isPartialView){await _resetToLatest();rMsgs();}
 const lastMsg=S.msgs.length>0?S.msgs[S.msgs.length-1]:null;const parentId=lastMsg?.id||null;
 S.msgs.push({role:'user',content:msgTxt,attachments:localAtts.length?localAtts:null,id:null,_localCreatedAt:new Date().toISOString()});rMsgs();S.streaming=true;updBtn();const _mw=document.getElementById('msgs-wrap');if(_mw)_mw._userScrolled=false;const sd=appStr();const chatParams={conversation_id:S.cid,message:msgTxt,model:gMdl()};if(S.recallDebug)chatParams.debug_memory_recall=true;if(parentId)chatParams.parent_id=parentId;if(imageUrls.length>0)chatParams.images=imageUrls;if(documents.length>0)chatParams.documents=documents;await _streamChat('chat',chatParams,sd,{handleMeta:true,errMsg:'发送失败',onNoRes:function(){toast('请先配置连接');},onDone:function(){if(S.msgs.length<=3)autoName();if(_wasNew){loadConvs();}else{const ci=S.allC.findIndex(c=>c.id===S.cid);if(ci>0){const[cv]=S.allC.splice(ci,1);cv.updated_at=new Date().toISOString();S.allC.unshift(cv);filterConvs();}}}});}
-function appStr(){const i=document.getElementById('msgs'),em=document.getElementById('empty');if(em)em.remove();const d=document.createElement('div');d.className='msg assistant';const mdl=gMdl();const mc=getModelColor(mdl);const metaH='<div class="msg-meta" id="str-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(mdl))+'</div></div></div>';_strInit();d.innerHTML=CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaH+'<div id="str-flow"></div></div>';i.appendChild(d);scr(true);return d;}
+function appStr(){const i=document.getElementById('msgs'),em=document.getElementById('empty');if(em)em.remove();const d=document.createElement('div');d.className='msg assistant';d.dataset.stream='active';const mdl=gMdl();const mc=getModelColor(mdl);const metaH='<div class="msg-meta" id="str-meta">'+_avatarHtml(mc)+'<div class="mm-body"><div class="mm-name">'+E(_displayName(mdl))+'</div></div></div>';_strInit();d.innerHTML=CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaH+'<div id="str-flow"></div></div>';i.appendChild(d);scr(true);return d;}
 function stopStr(){if(S._activeStream&&S._activeStream.ac)S._activeStream.ac.abort();else if(S.ac)S.ac.abort();}
 function updBtn(){const tb=document.getElementById('toolbar'),sb=document.getElementById('send-btn'),ex=document.getElementById('stop-btn');if(S.streaming){sb.style.display='none';if(!ex){const s=document.createElement('button');s.id='stop-btn';s.onclick=stopStr;s.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';tb.appendChild(s);}}else{_stopCli();sb.style.display='flex';if(ex)ex.remove();}}
 
