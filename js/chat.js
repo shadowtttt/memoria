@@ -264,17 +264,20 @@ async function _streamChat(act,params,sd,opts){
             }
             if(p.user_message_id){
               streamState.userMsgId=p.user_message_id;
-              /* 找最后一条 role==='user' && id==null 的 temp 占位，填回真实 id */
+              /* 找最后一条 role==='user' && id==null 的 temp 占位，填回真实 id
+                 注意：不能调 rMsgs() — 那会触发 _keyDiffChildren 把无 key 的流式 sd 节点删掉。
+                 只更新 data 层 + 直接给 DOM 节点 setAttribute data-id，让编辑/操作能定位 */
               if(isActiveDom()){
                 for(let i=S.msgs.length-1;i>=0;i--){
                   if(S.msgs[i].role==='user'&&S.msgs[i].id==null){
                     S.msgs[i].id=p.user_message_id;
                     if(p.parent_id!==undefined)S.msgs[i].parent_id=p.parent_id;
                     delete S.msgs[i]._localCreatedAt;
+                    const _el=document.querySelector('.msg[data-idx="'+i+'"]');
+                    if(_el)_el.setAttribute('data-id',p.user_message_id);
                     break;
                   }
                 }
-                rMsgs();
               }
             }
           }
