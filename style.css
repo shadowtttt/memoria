@@ -556,8 +556,17 @@ input[type="range"]::-webkit-slider-thumb:hover{box-shadow:0 1px 6px rgba(174,86
 .mo-btns{display:flex;gap:8px}
 .mo-btns .btn{flex:1}
 
+/* Partial / unconfirmed badges */
+.msg-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:10px;margin-top:6px;font-weight:500;letter-spacing:.2px}
+.msg-badge svg{flex-shrink:0}
+.part-badge{background:var(--bg2);color:var(--t3);border:1px solid var(--border)}
+.unconf-badge{background:rgba(220,38,38,.08);color:var(--danger);border:1px solid rgba(220,38,38,.2)}
+.msg.user.unconfirmed .mc{opacity:.7;border:1px dashed rgba(220,38,38,.3)}
+
 /* Edit */
-.ed-ta{width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-m);font-size:15px;line-height:1.5;resize:none;outline:none;color:var(--t1);min-height:60px;transition:border-color .2s}
+.msg.user.editing{justify-content:stretch}
+.msg.user.editing .mc{max-width:100%;width:100%;background:transparent;padding:0;border-radius:0;border:none}
+.ed-ta{width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-m);font-size:15px;line-height:1.5;resize:vertical;outline:none;color:var(--t1);min-height:80px;max-height:60vh;overflow-y:auto;transition:border-color .2s;font-family:inherit;display:block;box-sizing:border-box}
 .ed-ta:focus{border-color:var(--accent)}
 .ed-btns{display:flex;gap:8px;margin-top:8px;justify-content:flex-end}
 

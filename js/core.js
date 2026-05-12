@@ -8,9 +8,26 @@ async function _idbGet(cid){try{const db=await _idbOpen();const r=await new Prom
 async function _idbPut(cid,msgs,treeMeta,paging){try{const db=await _idbOpen();const _clone=typeof structuredClone==='function'?structuredClone:o=>JSON.parse(JSON.stringify(o));const data={id:cid,schema_v:2,msgs:_clone(msgs||[]),treeMeta:_clone(treeMeta||[]),hasMoreOlder:!!(paging&&paging.hasMoreOlder),nextBeforeId:paging?.nextBeforeId||null,ts:Date.now()};return new Promise((res,rej)=>{const tx=db.transaction('convs','readwrite');const st=tx.objectStore('convs');st.put(data);tx.oncomplete=()=>{res(true);_idbTrim();};tx.onerror=()=>res(false);});}catch(e){return false;}}
 async function _idbTrim(){try{const db=await _idbOpen();const tx=db.transaction('convs','readonly');const st=tx.objectStore('convs');const all=await new Promise(r=>{const rq=st.getAll();rq.onsuccess=()=>r(rq.result||[]);rq.onerror=()=>r([]);});if(all.length<=100)return;all.sort((a,b)=>b.ts-a.ts);const toDelete=all.slice(100);const tx2=db.transaction('convs','readwrite');const st2=tx2.objectStore('convs');toDelete.forEach(d=>st2.delete(d.id));}catch(e){}}
 async function _idbDel(cid){try{const db=await _idbOpen();return new Promise((res)=>{const tx=db.transaction('convs','readwrite');tx.objectStore('convs').delete(cid);tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);});}catch(e){return false;}}
+/* by-cid 缓存助手：旧流收尾不污染当前对话用 */
+async function _cacheConvById(cid,msgs,treeMeta,paging){
+  if(!cid)return;
+  return _idbPut(cid,msgs||[],treeMeta||[],paging||{});
+}
+/* 增量 append：旧流 abort 时把 partial 单条加入 IDB（不动 S）*/
+async function _appendCachedMsgById(cid,msg){
+  if(!cid||!msg)return;
+  const old=await _idbGet(cid);
+  if(!old||!old.msgs)return;  /* 没缓存就跳过，不强行建 */
+  const idx=msg.id?old.msgs.findIndex(m=>m.id===msg.id):-1;
+  let msgs=old.msgs.slice();
+  if(idx>=0)msgs[idx]=Object.assign({},msgs[idx],msg);
+  else msgs.push(msg);
+  if(msgs.length>50)msgs=msgs.slice(-50);
+  return _idbPut(cid,msgs,old.treeMeta||[],{hasMoreOlder:!!old.hasMoreOlder,nextBeforeId:old.nextBeforeId||null});
+}
 function _cacheConv(){if(!S.cid)return;if(S.isPartialView)return;/* partial 视图不写主缓存 */
 /* 只存 latest 50 条作为 cache，避免用户 loadOlder 后 cache 体积膨胀、首屏变慢 */
-const latest=S.msgs.slice(-50);const cacheHasMoreOlder=S.msgs.length>50||S.hasMoreOlder;const cacheNextBeforeId=latest.length>0?latest[0].id:null;_idbPut(S.cid,latest,S.treeMeta,{hasMoreOlder:cacheHasMoreOlder,nextBeforeId:cacheNextBeforeId});}
+const latest=S.msgs.slice(-50);const cacheHasMoreOlder=S.msgs.length>50||S.hasMoreOlder;const cacheNextBeforeId=latest.length>0?latest[0].id:null;return _cacheConvById(S.cid,latest,S.treeMeta,{hasMoreOlder:cacheHasMoreOlder,nextBeforeId:cacheNextBeforeId});}
 // === 缓存层结束 ===
 function _buildChildMap(all){const m=new Map();all.forEach(msg=>{const p=msg.parent_id||null;if(!m.has(p))m.set(p,[]);m.get(p).push(msg);});return m;}
 function _rebuildActivePath(all){if(!all||!all.length)return[];const cm=_buildChildMap(all);const r=[];let pid=null;while(true){const ch=cm.get(pid)||[];if(!ch.length)break;let ac=ch.find(c=>c.is_active)||ch[0];ac.sibling_count=ch.length;if(ch.length>1)ac.siblings=ch.map(c=>({id:c.id,branch_index:c.branch_index}));r.push(ac);pid=ac.id;}return r;}
@@ -38,17 +55,32 @@ function _mergeOlderPage(older,hasMore,nextBeforeId){
   }
   S.hasMoreOlder=!!hasMore;S.nextBeforeId=nextBeforeId;
 }
+/* 纯函数：不依赖全局，给旧流收尾 / by-cid 合并复用 */
+function _mergeNewerInto(msgs,latest){
+  if(!latest||!latest.length)return msgs;
+  let out=msgs.slice();
+  /* 1) 服务端 latest 里的 user 消息，按 content + _localCreatedAt 近似时间匹配本地 temp 占位 */
+  for(const srv of latest){
+    if(srv.role!=='user')continue;
+    const tempIdx=out.findIndex(m=>m.role==='user'&&m.id==null&&m.content===srv.content&&m._localCreatedAt&&Math.abs(new Date(m._localCreatedAt)-new Date(srv.created_at))<60000);
+    if(tempIdx>=0){const merged=Object.assign({},out[tempIdx],srv);delete merged._localCreatedAt;delete merged._unconfirmed;out[tempIdx]=merged;}
+  }
+  /* 2) 按 id upsert */
+  const idx=new Map();
+  out.forEach((m,i)=>{if(m.id)idx.set(m.id,i);});
+  for(const m of latest){
+    if(idx.has(m.id)){const i=idx.get(m.id);out[i]=Object.assign({},out[i],m);}
+    else if(!out.some(x=>x.id===m.id)){out.push(m);idx.set(m.id,out.length-1);}
+  }
+  /* 3) 仍 id==null 的 user 消息标 _unconfirmed（让 UI 给"未送达"+重发按钮）*/
+  out=out.map(m=>(m.role==='user'&&m.id==null&&!m._unconfirmed)?Object.assign({},m,{_unconfirmed:true}):m);
+  return out;
+}
+/* wrapper：保持老接口语义 */
 function _mergeNewerPage(latest){
   if(!latest||!latest.length)return;
-  /* 1. 清掉 optimistic temp（id==null 的本地占位）*/
-  S.msgs=S.msgs.filter(m=>m.id!=null);
-  /* 2. upsert by id：已存在的就地更新，新出现的追加 */
-  const idx=new Map();S.msgs.forEach((m,i)=>idx.set(m.id,i));
-  for(const m of latest){
-    if(idx.has(m.id)){const i=idx.get(m.id);S.msgs[i]=Object.assign({},S.msgs[i],m);}
-    else{S.msgs.push(m);idx.set(m.id,S.msgs.length-1);}
-  }
-  /* 3. 不动 hasMoreOlder/nextBeforeId */
+  S.msgs=_mergeNewerInto(S.msgs,latest);
+  /* 不动 hasMoreOlder/nextBeforeId */
 }
 function _mergeTreeMeta(meta){
   if(!meta||!meta.length)return;
@@ -72,7 +104,7 @@ function toggleRecallDebug(){S.recallDebug=!S.recallDebug;localStorage.setItem('
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZWFlbXhydWxrY2Frd3B1dWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMTkwOTksImV4cCI6MjA4Nzc5NTA5OX0.1hkMSX8weGk6t55BbcKFTkjJN72APl4JNvqdfWedpw0';
 async function _throwApiError(r){let text='';try{text=await r.text();}catch(e){}let msg=text;try{const d=JSON.parse(text);msg=d.error||d.message||text;}catch(e){}const err=new Error(msg||('HTTP '+r.status));err.status=r.status;err.body=text;throw err;}
 function apiErrMsg(e,fallback='失败'){if(e?.name==='AbortError')return'请求超时';if(e?.status===401)return'PIN 不正确或未保存';if(e?.status===400&&String(e.message||'').includes('Unknown action'))return'后端还不支持这个接口';if(e?.status)return fallback+'：HTTP '+e.status;return fallback;}
-async function api(a,p={},s=false){if(!S.apiUrl)return null;const h={'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON};if(S.pin)h['x-app-pin']=S.pin;const b=JSON.stringify({action:a,...p});if(s){S.ac=new AbortController();const _t=setTimeout(()=>S.ac.abort(),60000);const r=await fetch(S.apiUrl,{method:'POST',headers:h,body:b,signal:S.ac.signal});clearTimeout(_t);if(!r.ok)await _throwApiError(r);return r;}const _ac=new AbortController();const _t=setTimeout(()=>_ac.abort(),30000);const r=await fetch(S.apiUrl,{method:'POST',headers:h,body:b,signal:_ac.signal});clearTimeout(_t);if(!r.ok)await _throwApiError(r);return r.json();}
+async function api(a,p={},s=false,externalAc){if(!S.apiUrl)return null;const h={'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON};if(S.pin)h['x-app-pin']=S.pin;const b=JSON.stringify({action:a,...p});if(s){const ac=externalAc||new AbortController();if(!externalAc)S.ac=ac;const _t=setTimeout(()=>ac.abort(),60000);const r=await fetch(S.apiUrl,{method:'POST',headers:h,body:b,signal:ac.signal});clearTimeout(_t);if(!r.ok)await _throwApiError(r);return r;}const _ac=new AbortController();const _t=setTimeout(()=>_ac.abort(),30000);const r=await fetch(S.apiUrl,{method:'POST',headers:h,body:b,signal:_ac.signal});clearTimeout(_t);if(!r.ok)await _throwApiError(r);return r.json();}
 function E(s){return s===undefined||s===null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2e3);}
 function cMo(){document.getElementById('cf-mo').classList.remove('on');}
