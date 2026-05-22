@@ -3,147 +3,210 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>记忆召回测试</title>
+<title>记忆浮现调试台</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; min-height: 100vh; }
-h1 { font-size: 1.3em; margin-bottom: 16px; color: #fff; }
-.config { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.config input { flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; }
-.query-row { display: flex; gap: 10px; margin-bottom: 16px; }
-.query-row input { flex: 1; padding: 10px 12px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; }
-button { padding: 10px 20px; border: none; border-radius: 8px; background: #4a6fa5; color: #fff; font-size: 14px; cursor: pointer; white-space: nowrap; }
-button:hover { background: #5a8fc5; }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.status { margin-bottom: 12px; font-size: 13px; color: #888; }
-.results { margin-top: 16px; }
-.summary { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid #333; }
-.summary h3 { font-size: 14px; margin-bottom: 8px; color: #8ab4f8; }
-.summary .meta { font-size: 12px; color: #999; line-height: 1.8; }
-.card { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 4px solid #555; }
-.card.selected { border-left-color: #4caf50; }
-.card.rejected { border-left-color: #f44336; opacity: 0.7; }
-.card .rank { font-size: 12px; color: #888; margin-bottom: 4px; }
-.card .content { font-size: 14px; margin-bottom: 8px; line-height: 1.5; }
-.card .scores { font-size: 12px; color: #aaa; display: flex; flex-wrap: wrap; gap: 8px; }
-.card .scores span { background: #0d1b2a; padding: 2px 8px; border-radius: 4px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px; }
-.badge.yes { background: #1b5e20; color: #a5d6a7; }
-.badge.no { background: #4a1515; color: #ef9a9a; }
-.empty { text-align: center; color: #666; padding: 40px; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#10131c;color:#e9ecf2;padding:20px;min-height:100vh}
+h1{font-size:22px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 10px;color:#a9b7d0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.8fr);gap:16px;align-items:start}
+.panel{background:#171c29;border:1px solid #2a3142;border-radius:10px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+input,textarea{width:100%;padding:10px 12px;border:1px solid #31394b;border-radius:8px;background:#101522;color:#e9ecf2;font-size:14px}
+textarea{min-height:80px;resize:vertical;line-height:1.5}
+button{padding:9px 14px;border:0;border-radius:8px;background:#4d6bfe;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
+button.secondary{background:#293247}
+button:disabled{opacity:.5;cursor:not-allowed}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #252c3d}
+.switch-row:last-child{border-bottom:0}
+.switch-row span{font-size:14px;color:#d5dbea}
+.switch{width:48px;height:28px;border-radius:14px;background:#32394c;position:relative;border:0;padding:0;flex-shrink:0}
+.switch::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;left:3px;top:3px;transition:transform .18s}
+.switch.on{background:#4d6bfe}
+.switch.on::after{transform:translateX(20px)}
+.muted{font-size:12px;color:#8b95aa;line-height:1.6}
+.status{font-size:13px;color:#8b95aa;margin:8px 0 0;min-height:20px}
+.summary{font-size:13px;color:#b8c3d9;line-height:1.8}
+.block{background:#101522;border:1px solid #2a3142;border-radius:8px;padding:12px;margin-top:10px;white-space:pre-wrap;line-height:1.5}
+.card{background:#121827;border:1px solid #2a3142;border-left:4px solid #48516a;border-radius:8px;padding:12px;margin:10px 0}
+.card.selected{border-left-color:#50c878}
+.card.skipped{border-left-color:#d19a66}
+.card .top{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.badge{display:inline-block;font-size:11px;border-radius:999px;padding:2px 8px;background:#283047;color:#b8c3d9}
+.badge.ok{background:#173a24;color:#8fe6a7}
+.badge.no{background:#44231f;color:#ffb0a3}
+.scores{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.scores span{font-size:12px;background:#0d1220;color:#b8c3d9;padding:3px 7px;border-radius:6px}
+.log-meta{font-size:12px;color:#8b95aa;margin-bottom:8px}
+.log-preview{font-size:13px;color:#d7deee;margin-bottom:8px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<h1>记忆召回测试工具</h1>
-<div class="config">
-  <input type="text" id="api-url" placeholder="API 地址" value="https://api.catdial.org">
-  <input type="password" id="pin" placeholder="PIN">
+<h1>记忆浮现调试台</h1>
+
+<div class="panel">
+  <div class="row">
+    <input type="text" id="api-url" placeholder="API 地址" value="https://api.catdial.org">
+    <input type="password" id="pin" placeholder="APP_PIN">
+  </div>
+  <div class="muted">这里使用 PIN 访问调试接口；Telegram hook 部署时使用 CHANNEL_RECALL_TOKEN。</div>
 </div>
-<div class="query-row">
-  <input type="text" id="query" placeholder="输入关键词或一句话来测试召回..." autofocus>
-  <button id="test-btn" onclick="doTest()">测试</button>
+
+<div class="grid">
+  <div>
+    <div class="panel">
+      <h2>开关</h2>
+      <div class="switch-row"><span>Telegram 记忆浮现</span><button class="switch" id="telegram-sw" onclick="toggleSetting('telegram_enabled')"></button></div>
+      <div class="switch-row"><span>Memoria 网页记忆浮现</span><button class="switch" id="memoria-sw" onclick="toggleSetting('memoria_enabled')"></button></div>
+      <div class="switch-row"><span>调试日志</span><button class="switch" id="log-sw" onclick="toggleSetting('debug_log_enabled')"></button></div>
+      <div class="status" id="settings-status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>手动测试 Telegram 浮现</h2>
+      <textarea id="query" placeholder="输入一条 Telegram 消息，测试 conservative 召回"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="channel-btn" onclick="testChannelRecall()">测试浮现</button>
+        <button class="secondary" id="raw-btn" onclick="testRawRecall()">查看原始候选</button>
+      </div>
+      <div class="status" id="test-status"></div>
+      <div id="test-results"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:0">
+        <h2>最近 Telegram 召回日志</h2>
+        <button class="secondary" onclick="loadLogs()">刷新</button>
+      </div>
+      <div class="status" id="logs-status"></div>
+      <div id="logs"></div>
+    </div>
+  </div>
 </div>
-<div class="status" id="status"></div>
-<div class="results" id="results"></div>
 
 <script>
-const $ = id => document.getElementById(id);
+const $=id=>document.getElementById(id);
+let settings={};
 
-if (localStorage.getItem('recall_pin')) $('pin').value = localStorage.getItem('recall_pin');
-if (localStorage.getItem('recall_api')) $('api-url').value = localStorage.getItem('recall_api');
+if(localStorage.getItem('recall_pin'))$('pin').value=localStorage.getItem('recall_pin');
+if(localStorage.getItem('recall_api'))$('api-url').value=localStorage.getItem('recall_api');
+$('query').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))testChannelRecall();});
+document.addEventListener('DOMContentLoaded',()=>{loadSettings();loadLogs();});
 
-$('query').addEventListener('keydown', e => { if (e.key === 'Enter') doTest(); });
-
-async function doTest() {
-  const api = $('api-url').value.trim();
-  const pin = $('pin').value.trim();
-  const query = $('query').value.trim();
-  if (!query) return;
-  if (!pin) { $('status').textContent = '请输入 PIN'; return; }
-
-  localStorage.setItem('recall_pin', pin);
-  localStorage.setItem('recall_api', api);
-
-  $('test-btn').disabled = true;
-  $('status').textContent = '查询中...';
-  $('results').innerHTML = '';
-
-  try {
-    const res = await fetch(api, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-app-pin': pin },
-      body: JSON.stringify({ action: 'debug_memory_recall', message: query })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      $('status').textContent = `错误 ${res.status}: ${t}`;
-      return;
-    }
-    const data = await res.json();
-    renderResults(data, query);
-    $('status').textContent = '';
-  } catch (e) {
-    $('status').textContent = '请求失败: ' + e.message;
-  } finally {
-    $('test-btn').disabled = false;
-  }
+function headers(){const pin=$('pin').value.trim();return {'Content-Type':'application/json','x-app-pin':pin};}
+function apiUrl(){return $('api-url').value.trim().replace(/\/$/,'');}
+function saveConn(){localStorage.setItem('recall_pin',$('pin').value.trim());localStorage.setItem('recall_api',apiUrl());}
+async function call(action,params={}){
+  saveConn();
+  const res=await fetch(apiUrl(),{method:'POST',headers:headers(),body:JSON.stringify({action,...params})});
+  if(!res.ok)throw new Error(await res.text());
+  return await res.json();
 }
-
-function renderResults(data, query) {
-  const debug = data.debug || {};
-  const candidates = debug.candidates || [];
-  const recalled = data.recalled || [];
-  const count = data.count || 0;
-  const fullContentMap = {};
-  for (const r of recalled) { if (r.id) fullContentMap[r.id] = r.content || ''; }
-
-  let html = '<div class="summary"><h3>总览</h3><div class="meta">';
-  html += `查询文本: "${esc(query)}"<br>`;
-  if (debug.entities && debug.entities.length > 0) {
-    html += `提取实体: ${debug.entities.map(e => esc(e)).join(', ')}<br>`;
-  }
-  html += `候选数: ${candidates.length}<br>`;
-  html += `召回数: ${count}<br>`;
-  if (debug.top_similarity !== undefined) html += `最高相似度: ${debug.top_similarity.toFixed(4)}<br>`;
-  html += `最低相似度门槛: ${debug.min_top_similarity}<br>`;
-  html += `最终分数门槛: ${debug.threshold}<br>`;
-  html += `召回上限: ${debug.primary_limit}<br>`;
-  if (debug.skipped_reason) html += `<span style="color:#f44336">跳过原因: ${debug.skipped_reason}</span><br>`;
-  html += '</div></div>';
-
-  if (candidates.length === 0) {
-    html += '<div class="empty">没有找到候选记忆</div>';
-  } else {
-    for (const c of candidates) {
-      const sel = c.selected;
-      html += `<div class="card ${sel ? 'selected' : 'rejected'}">`;
-      html += `<div class="rank">#${c.rank}`;
-      html += sel
-        ? '<span class="badge yes">会注入</span>'
-        : '<span class="badge no">不注入</span>';
-      html += '</div>';
-      const fullText = fullContentMap[c.id] || c.content;
-      html += `<div class="content">${esc(fullText)}</div>`;
-      html += '<div class="scores">';
-      html += `<span>最终分: ${c.score.toFixed(4)}</span>`;
-      if (c.score_detail) {
-        const d = c.score_detail;
-        if (d.similarity !== undefined) html += `<span>相似度: ${d.similarity.toFixed(4)}</span>`;
-        if (d.importance !== undefined) html += `<span>重要度: ${d.importance}</span>`;
-        if (d.recency !== undefined) html += `<span>时效: ${d.recency.toFixed(3)}</span>`;
-        if (d.reinforcement !== undefined) html += `<span>强化: ${d.reinforcement.toFixed(2)}</span>`;
-        if (d.hit !== undefined && d.hit !== null) html += `<span>召回次数: ${d.hit}</span>`;
-        if (d.cooldown !== undefined) html += `<span>冷却: ${d.cooldown.toFixed(2)}</span>`;
-      }
-      if (c.tags && c.tags.length > 0) html += `<span>标签: ${c.tags.map(esc).join(', ')}</span>`;
-      html += '</div></div>';
-    }
-  }
-
-  $('results').innerHTML = html;
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(n){return Number.isFinite(Number(n))?Number(n).toFixed(3):'-';}
+function renderSwitches(){
+  $('telegram-sw').classList.toggle('on',settings.telegram_enabled!==false);
+  $('memoria-sw').classList.toggle('on',settings.memoria_enabled!==false);
+  $('log-sw').classList.toggle('on',settings.debug_log_enabled!==false);
 }
-
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+async function loadSettings(){
+  try{
+    const d=await call('get_memory_recall_settings');
+    settings=d.settings||{};
+    renderSwitches();
+    $('settings-status').textContent=`mode ${settings.telegram_mode||'conservative'} · limit ${settings.telegram_limit??1} · threshold ${settings.telegram_threshold??0.72}`;
+  }catch(e){$('settings-status').textContent='加载失败：'+e.message;}
+}
+async function toggleSetting(key){
+  const next={...settings,[key]:!(settings[key]!==false)};
+  settings=next;renderSwitches();
+  try{
+    const d=await call('update_memory_recall_settings',{settings:{[key]:next[key]}});
+    settings=d.settings||next;renderSwitches();
+    $('settings-status').textContent='已保存';
+  }catch(e){$('settings-status').textContent='保存失败：'+e.message;loadSettings();}
+}
+async function testChannelRecall(){
+  const q=$('query').value.trim();
+  if(!q)return;
+  $('channel-btn').disabled=true;$('test-status').textContent='测试中...';$('test-results').innerHTML='';
+  try{
+    const d=await call('channel_memory_recall',{message:q,channel:'telegram',debug:true});
+    renderChannelResult(d);
+    $('test-status').textContent=`耗时 ${d.took_ms||0} ms`;
+    loadLogs();
+  }catch(e){$('test-status').textContent='请求失败：'+e.message;}
+  finally{$('channel-btn').disabled=false;}
+}
+async function testRawRecall(){
+  const q=$('query').value.trim();
+  if(!q)return;
+  $('raw-btn').disabled=true;$('test-status').textContent='查询候选中...';$('test-results').innerHTML='';
+  try{
+    const d=await call('debug_memory_recall',{message:q});
+    renderRawResult(d);
+    $('test-status').textContent='';
+  }catch(e){$('test-status').textContent='请求失败：'+e.message;}
+  finally{$('raw-btn').disabled=false;}
+}
+function renderChannelResult(d){
+  const dbg=d.debug||{};
+  let html='<div class="summary">';
+  html+=`memory_ids: ${(d.memory_ids||[]).map(esc).join(', ')||'-'}<br>`;
+  html+=`skipped_reason: ${esc(dbg.skipped_reason||'-')}<br>`;
+  html+=`top_similarity: ${fmt(dbg.top_similarity)} · threshold: ${fmt(dbg.threshold)} · min_similarity: ${fmt(dbg.min_candidate_similarity)}`;
+  html+='</div>';
+  if(d.recall_text)html+='<div class="block">'+esc(d.recall_text)+'</div>';
+  const cs=dbg.candidates||[];
+  html+=cs.map(c=>candidateCard(c)).join('');
+  $('test-results').innerHTML=html;
+}
+function renderRawResult(d){
+  const dbg=d.debug||{},cs=dbg.candidates||[];
+  let html='<div class="summary">';
+  html+=`召回数: ${d.count||0}<br>top_similarity: ${fmt(dbg.top_similarity)} · threshold: ${fmt(dbg.threshold)}`;
+  html+='</div>';
+  html+=cs.map(c=>candidateCard(c,true)).join('');
+  $('test-results').innerHTML=html||'<div class="muted">无候选</div>';
+}
+function candidateCard(c,showContent){
+  const sd=c.score_detail||{},tr=c.recall_trigger||{};
+  const cls=c.selected?'selected':'';
+  let html=`<div class="card ${cls}"><div class="top"><div>#${c.rank||'-'} <span class="badge ${c.selected?'ok':'no'}">${c.selected?'注入':'未注入'}</span></div><div>${fmt(c.score)}</div></div>`;
+  if(showContent&&c.content)html+=`<div class="log-preview">${esc(c.content)}</div>`;
+  if(tr.reason)html+=`<div class="muted">trigger: ${esc(tr.reason)} ${tr.ok===false?'· blocked':''}</div>`;
+  html+='<div class="scores">';
+  html+=`<span>sim ${fmt(sd.similarity)}</span><span>importance ${fmt(sd.importance)}</span><span>hit ${sd.hit??0}</span>`;
+  if(sd.skipped_reason)html+=`<span>${esc(sd.skipped_reason)}</span>`;
+  html+='</div></div>';
+  return html;
+}
+async function loadLogs(){
+  $('logs-status').textContent='加载中...';
+  try{
+    const d=await call('list_channel_recall_logs',{limit:60});
+    const logs=d.logs||[];
+    $('logs-status').textContent=d.error?('日志表未就绪：'+d.error):`${logs.length} 条`;
+    $('logs').innerHTML=logs.map(renderLog).join('')||'<div class="muted">暂无日志</div>';
+  }catch(e){$('logs-status').textContent='加载失败：'+e.message;}
+}
+function renderLog(log){
+  const ids=log.memory_ids||[];
+  const has=ids.length>0;
+  const dbg=log.debug||{};
+  let html=`<div class="card ${has?'selected':'skipped'}">`;
+  html+=`<div class="log-meta">${esc(log.created_at||'')} · ${esc(log.channel||'telegram')} · ${log.took_ms||0} ms</div>`;
+  html+=`<div class="log-preview">${esc(log.message_preview||'')}</div>`;
+  html+=`<div><span class="badge ${has?'ok':'no'}">${has?'已浮现':'已跳过'}</span> <span class="badge">${esc(log.skipped_reason||dbg.skipped_reason||'-')}</span></div>`;
+  if(log.recall_text)html+=`<div class="block">${esc(log.recall_text)}</div>`;
+  if(ids.length)html+=`<div class="muted">memory_ids: ${ids.map(esc).join(', ')}</div>`;
+  if(dbg.top_similarity!==undefined)html+=`<div class="muted">top_similarity ${fmt(dbg.top_similarity)} · threshold ${fmt(dbg.threshold)}</div>`;
+  html+='</div>';
+  return html;
+}
 </script>
 </body>
 </html>
