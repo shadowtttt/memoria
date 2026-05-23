@@ -17,6 +17,9 @@ textarea{min-height:80px;resize:vertical;line-height:1.5}
 button{padding:9px 14px;border:0;border-radius:8px;background:#4d6bfe;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
 button.secondary{background:#293247}
 button:disabled{opacity:.5;cursor:not-allowed}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button.filter{background:#293247;color:#b8c3d9;padding:7px 10px;font-size:12px}
+button.filter.active{background:#4d6bfe;color:#fff}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #252c3d}
 .switch-row:last-child{border-bottom:0}
 .switch-row span{font-size:14px;color:#d5dbea}
@@ -81,6 +84,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
         <h2>最近 Telegram 召回日志</h2>
         <button class="secondary" onclick="loadLogs()">刷新</button>
       </div>
+      <div class="filters">
+        <button class="filter active" id="filter-all" onclick="setLogFilter('all')">全部</button>
+        <button class="filter" id="filter-recalled" onclick="setLogFilter('recalled')">只看已浮现</button>
+        <button class="filter" id="filter-skipped" onclick="setLogFilter('skipped')">只看跳过</button>
+      </div>
       <div class="status" id="logs-status"></div>
       <div id="logs"></div>
     </div>
@@ -90,6 +98,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <script>
 const $=id=>document.getElementById(id);
 let settings={};
+let lastLogs=[];
+let logFilter='all';
 
 if(localStorage.getItem('recall_pin'))$('pin').value=localStorage.getItem('recall_pin');
 if(localStorage.getItem('recall_api'))$('api-url').value=localStorage.getItem('recall_api');
@@ -174,23 +184,42 @@ function renderRawResult(d){
 }
 function candidateCard(c,showContent){
   const sd=c.score_detail||{},tr=c.recall_trigger||{};
+  const meaningful=sd.meaningful_matched_entities||sd.matched_entities||tr.matched_entities||[];
+  const ignored=sd.ignored_matched_entities||tr.ignored_matched_entities||[];
   const cls=c.selected?'selected':'';
   let html=`<div class="card ${cls}"><div class="top"><div>#${c.rank||'-'} <span class="badge ${c.selected?'ok':'no'}">${c.selected?'注入':'未注入'}</span></div><div>${fmt(c.score)}</div></div>`;
   if(showContent&&c.content)html+=`<div class="log-preview">${esc(c.content)}</div>`;
   if(tr.reason)html+=`<div class="muted">trigger: ${esc(tr.reason)} ${tr.ok===false?'· blocked':''}</div>`;
   html+='<div class="scores">';
   html+=`<span>sim ${fmt(sd.similarity)}</span><span>importance ${fmt(sd.importance)}</span><span>hit ${sd.hit??0}</span>`;
+  if(meaningful.length)html+=`<span>meaningful ${meaningful.map(esc).join(', ')}</span>`;
+  if(ignored.length)html+=`<span>ignored ${ignored.map(esc).join(', ')}</span>`;
   if(sd.skipped_reason)html+=`<span>${esc(sd.skipped_reason)}</span>`;
   html+='</div></div>';
   return html;
 }
+function setLogFilter(next){
+  logFilter=next;
+  ['all','recalled','skipped'].forEach(key=>$('filter-'+key).classList.toggle('active',logFilter===key));
+  renderLogs();
+}
+function filteredLogs(){
+  if(logFilter==='recalled')return lastLogs.filter(log=>(log.memory_ids||[]).length>0);
+  if(logFilter==='skipped')return lastLogs.filter(log=>(log.memory_ids||[]).length===0);
+  return lastLogs;
+}
+function renderLogs(){
+  const logs=filteredLogs();
+  $('logs-status').textContent=`${logs.length} / ${lastLogs.length} 条`;
+  $('logs').innerHTML=logs.map(renderLog).join('')||'<div class="muted">暂无日志</div>';
+}
 async function loadLogs(){
   $('logs-status').textContent='加载中...';
   try{
-    const d=await call('list_channel_recall_logs',{limit:60});
-    const logs=d.logs||[];
-    $('logs-status').textContent=d.error?('日志表未就绪：'+d.error):`${logs.length} 条`;
-    $('logs').innerHTML=logs.map(renderLog).join('')||'<div class="muted">暂无日志</div>';
+    const d=await call('list_channel_recall_logs',{limit:200});
+    lastLogs=d.logs||[];
+    if(d.error)$('logs-status').textContent='日志表未就绪：'+d.error;
+    else renderLogs();
   }catch(e){$('logs-status').textContent='加载失败：'+e.message;}
 }
 function renderLog(log){
