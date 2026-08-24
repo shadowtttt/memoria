@@ -1,6 +1,6 @@
 // Sidebar
 function tgSb(s){document.getElementById('sidebar').classList.toggle('on',!!s);document.getElementById('sb-overlay').classList.toggle('on',!!s);}
-function saveConn(){S.apiUrl=document.getElementById('s-url').value.trim();S.pin=document.getElementById('s-pin').value.trim();localStorage.setItem('memoria_url',S.apiUrl);localStorage.setItem('memoria_pin',S.pin);toast('已保存');backSP();Promise.all([loadConvs(),loadMdls()]);}
+function saveConn(){S.apiUrl=document.getElementById('s-url').value.trim();S.webToken=document.getElementById('s-web-token').value.trim();S.legacyPin='';localStorage.setItem('memoria_url',S.apiUrl);if(S.webToken)localStorage.setItem('memoria_web_token',S.webToken);else localStorage.removeItem('memoria_web_token');localStorage.removeItem('memoria_pin');toast('已保存');backSP();Promise.all([loadConvs(),loadMdls()]);}
 
 // Conversations
 async function loadConvs(){try{const cached=localStorage.getItem('memoria_convs');if(cached){try{S.allC=JSON.parse(cached);filterConvs();rFolderBar();}catch(e){}}const d=await api('list_conversations');S.allC=d?.conversations||[];localStorage.setItem('memoria_convs',JSON.stringify(S.allC));filterConvs();rFolderBar();}catch(e){}}
