@@ -1,0 +1,32 @@
+# Import this file globally, then `import memoria_session` ONLY in the
+# private Access-protected host. The normal static-file handler serves /memoria/.
+(memoria_session) {
+    handle /memoria/api {
+        route {
+            # Cookie authentication makes same-origin write protection mandatory.
+            @invalid not {
+                method POST
+                header X-Memoria-Client session
+                header Content-Type application/json*
+                expression {http.request.header.Origin} == 'https://' + {http.request.host}
+            }
+            respond @invalid "Forbidden" 403
+            forward_auth telegram-hub:8080 {
+                uri /site-auth/check
+            }
+            rewrite * /
+            reverse_proxy memoria-api:8000 {
+                header_up x-memoria-web-token {env.MEMORIA_WEB_TOKEN}
+                header_up -Cookie
+                header_up -Authorization
+                header_up -x-app-pin
+                header_up -x-memoria-audit-token
+                header_up -x-channel-recall-token
+                header_up -x-channel-timeline-token
+                header_down -Access-Control-Allow-Origin
+                header_down Cache-Control "no-store"
+                flush_interval -1
+            }
+        }
+    }
+}

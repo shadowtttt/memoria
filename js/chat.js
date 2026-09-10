@@ -151,12 +151,15 @@ const aExtra=m._partial?' partial':'';
 const partBadge=m._partial?'<div class="msg-badge part-badge">已暂停</div>':'';
 return '<div class="msg assistant'+aExtra+'" data-idx="'+idx+'" data-id="'+(m.id||'')+'" data-rk="'+rk+'">'+CLAUDE_AVATAR+'<div style="width:100%;min-width:0">'+metaHtml+rMsgUsage(m)+thinkHtml+mcHtml+partBadge+'</div><div class="msg-acts msg-acts-visible">'+a+'</div></div>';}
 
+// Never let message HTML inherit the private site's authenticated origin.
+function safeMessageUrl(value,image=false){try{const u=new URL(String(value||''),location.href);if(['http:','https:'].includes(u.protocol)||(!image&&u.protocol==='mailto:'))return u.href;}catch(e){}return '';}
 // marked.js setup — custom renderers for code blocks and links
 function _initMarked(){
   if(typeof marked==='undefined'||window._markedReady)return;
   marked.use({breaks:true,gfm:true,
     renderer:{
-      code({text,lang,escaped}){
+      code(token,legacyLang,legacyEscaped){
+        const {text,lang,escaped}=typeof token==='string'?{text:token,lang:legacyLang,escaped:legacyEscaped}:token;
         const id='c'+Math.random().toString(36).slice(2,8);const language=lang||'';const safe=escaped?text:E(text);
         if(language.toLowerCase()==='html'){
           const b64=btoa(unescape(encodeURIComponent(text)));
@@ -166,11 +169,14 @@ function _initMarked(){
         const ll=language?'<span class="code-lang">'+E(language)+'</span>':'';const hc=language?' class="language-'+E(language)+'"':'';
         return '<pre>'+ll+'<code'+hc+'>'+safe+'</code><div class="code-actions"><button onclick="cpC(\''+id+'\',this)">复制</button></div><textarea id="'+id+'" style="display:none">'+safe+'</textarea></pre>';
       },
-      link({href,text}){
-        const h=href||'';
+      html(token){return E(typeof token==='string'?token:token.text);},
+      image(token,legacyTitle,legacyText){const {href,text}=typeof token==='string'?{href:token,text:legacyText}:token;const url=safeMessageUrl(href,true);return url?'<img src="'+E(url)+'" alt="'+E(text||'')+'" loading="lazy">':E(text||'');},
+      link(token,legacyTitle,legacyText){
+        const {href,text}=typeof token==='string'?{href:token,text:legacyText}:token;
+        const h=safeMessageUrl(href);if(!h)return text||'';
         if(h.includes('action=download_file'))return '<a class="dl-link" href="'+E(h)+'">📎 '+(/^https?:\/\//.test(text)?'点击下载':text)+'</a>';
-        if(h.includes('action=download_ics'))return '<a class="dl-btn ics-btn" href="'+E(h)+'" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>';
-        return '<a href="'+E(h)+'" target="_blank">'+text+'</a>';
+        if(h.includes('action=download_ics'))return '<a class="dl-btn ics-btn" href="'+E(h)+'" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>';
+        return '<a href="'+E(h)+'" target="_blank" rel="noopener noreferrer">'+text+'</a>';
       }
     }
   });
@@ -202,7 +208,7 @@ function rMD(t){if(!t)return '';
   h+=pendingHtml;
   /* post-process: bare download/ics URLs not caught by marked autolink */
   h=h.replace(/(?<![="'])(https?:\/\/[^\s<"']+action=download_file[^\s<"']*)/g,'<a class="dl-link" href="$1">📎 点击下载</a>');
-  h=h.replace(/(?<![="'])(https?:\/\/[^\s<"']+action=download_ics[^\s<"']*)/g,'<a class="dl-btn ics-btn" href="$1" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>');
+  h=h.replace(/(?<![="'])(https?:\/\/[^\s<"']+action=download_ics[^\s<"']*)/g,'<a class="dl-btn ics-btn" href="$1" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>');
   /* <!--TL--> aggregation: group consecutive tool nodes into collapsible timeline */
   h=h.replace(/(<!--TL-->[\s\S]*?<!--\/TL-->\n?)+/g,m=>{const inner=m.replace(/<!--\/?TL-->/g,'');const labels=[];const re=/<span class="tn-label">([^<]+)<\/span>/g;let lm;while((lm=re.exec(inner))!==null){const t=lm[1].trim();if(t&&t!=='Done'&&!/^正在执行/.test(t))labels.push(t);}const count=labels.length;const summary=labels.length?labels.join('、'):'工具调用';const countStr=count>1?' · '+count+' 个调用':'';return '<div class="tool-timeline tl-foldable"><div class="str-tl-header" onclick="this.classList.toggle(\'open\')"><svg class="stl-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg><span class="stl-summary">'+summary+countStr+'</span><span class="stl-done-badge">✓</span></div><div class="str-tl-body">'+inner+'<div class="tool-node tn-done"><span class="tn-icon">'+TN_SVG.done+'</span><span class="tn-label">Done</span></div></div></div>';});
   return h;
@@ -402,7 +408,7 @@ function _handleToolEvent(sd,p,_stlOverride){
       lastNode.classList.remove('tn-loading');
       /* add collapsible result badge */
       const resText=(p.result||'').substring(0,2000);
-      if(resText){const _dlify=s=>s.replace(/(https?:\/\/[^\s]+action=download_file[^\s]*)/g,'<a class="dl-link" href="$1">📎 点击下载</a>').replace(/(https?:\/\/[^\s]+action=download_ics[^\s]*)/g,'<a class="dl-btn ics-btn" href="$1" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>');const wrap=document.createElement('div');wrap.className='tn-result';wrap.innerHTML='<button class="tn-result-tag" onclick="tgTnResult(this)"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>Result</button><div class="tn-result-body">'+_dlify(E(resText)).replace(/\n/g,'<br>')+'</div>';
+      if(resText){const _dlify=s=>s.replace(/(https?:\/\/[^\s]+action=download_file[^\s]*)/g,'<a class="dl-link" href="$1">📎 点击下载</a>').replace(/(https?:\/\/[^\s]+action=download_ics[^\s]*)/g,'<a class="dl-btn ics-btn" href="$1" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>添加到日历</a>');const wrap=document.createElement('div');wrap.className='tn-result';wrap.innerHTML='<button class="tn-result-tag" onclick="tgTnResult(this)"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>Result</button><div class="tn-result-body">'+_dlify(E(resText)).replace(/\n/g,'<br>')+'</div>';
       /* make label a wrapper div if it's just a span */
       const lbl=lastNode.querySelector('.tn-label');if(lbl&&lbl.parentNode===lastNode){const div=document.createElement('div');div.appendChild(lbl);div.appendChild(wrap);lastNode.appendChild(div);}else{lbl.parentNode.appendChild(wrap);}}
     }
